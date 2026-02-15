@@ -19,7 +19,9 @@ export function Header() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    // Limpar cookie
+    document.cookie = 'token=; path=/; max-age=0';
+    window.location.href = '/login';
   };
 
   const user = typeof window !== 'undefined'
