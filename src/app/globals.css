@@ -1,26 +1,69 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Primárias — Encontro das Águas (Rio Negro + Rio Solimões) */
+    --primary: 203 84% 30%; /* #0B5D8A */
+    --primary-mid: 199 71% 38%; /* #1B7BA8 */
+    --primary-light: 200 64% 54%; /* #3DA5D9 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Verde — Floresta Amazônica */
+    --secondary: 143 60% 33%; /* #22874A */
+    --secondary-dark: 143 57% 26%; /* #1A6B3C */
+    --secondary-light: 143 56% 75%; /* #A8E4BC */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Dourado — Pôr do Sol no Rio */
+    --accent: 38 92% 48%; /* #E8960C */
+    --accent-light: 44 95% 68%; /* #FACC5F */
+    --accent-foreground: 0 0% 100%;
+
+    /* Status */
+    --success: 143 60% 33%; /* #22874A */
+    --success-bg: 143 56% 93%; /* #E3F5E8 */
+    --warning: 38 92% 48%; /* #E8960C */
+    --warning-bg: 44 100% 95%; /* #FFF4E5 */
+    --destructive: 356 61% 51%; /* #D63031 */
+    --destructive-bg: 0 64% 96%; /* #FDEAEA */
+    --info: 203 84% 30%; /* #0B5D8A */
+    --info-bg: 199 68% 96%; /* #EDF6FB */
+
+    /* Neutros */
+    --background: 210 17% 98%; /* #F5F7F8 */
+    --foreground: 210 53% 11%; /* #0D1B2A */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 210 53% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 53% 11%;
+
+    --muted: 200 20% 92%; /* #E2E8ED */
+    --muted-foreground: 206 20% 54%; /* #7A8D9C */
+
+    --border: 200 20% 92%; /* #E2E8ED */
+    --input: 200 20% 92%;
+    --ring: 203 84% 30%;
+
+    --radius: 0.5rem;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }

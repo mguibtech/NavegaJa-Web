@@ -78,13 +78,13 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card shadow-sm">
       <div className="flex h-full flex-col gap-2">
         {/* Logo */}
-        <div className="flex h-14 items-center border-b px-4">
+        <div className="flex h-14 items-center border-b border-border bg-primary px-4">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <Ship className="h-6 w-6 text-primary" />
-            <span className="text-xl">NavegaJá Admin</span>
+            <Ship className="h-6 w-6 text-white" />
+            <span className="text-xl text-white">NavegaJá Admin</span>
           </Link>
         </div>
 
@@ -103,9 +103,9 @@ export function Sidebar() {
                     <Link
                       href={section.href}
                       className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent',
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-primary/10 hover:text-primary',
                         pathname === section.href
-                          ? 'bg-accent text-accent-foreground'
+                          ? 'bg-primary text-white'
                           : 'text-muted-foreground'
                       )}
                     >
@@ -119,9 +119,9 @@ export function Sidebar() {
                       <Link
                         href={item.href}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent',
+                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-primary/10 hover:text-primary',
                           pathname === item.href
-                            ? 'bg-accent text-accent-foreground'
+                            ? 'bg-primary text-white'
                             : 'text-muted-foreground'
                         )}
                       >

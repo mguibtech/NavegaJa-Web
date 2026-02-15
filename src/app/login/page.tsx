@@ -38,14 +38,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary via-primary-mid to-primary-light p-4">
+      <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-            <Ship className="h-10 w-10 text-primary-foreground" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg">
+            <Ship className="h-10 w-10 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold">NavegaJá Admin</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold text-primary">NavegaJá Admin</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Entre com suas credenciais para acessar o painel administrativo
           </CardDescription>
         </CardHeader>
