@@ -1,69 +1,53 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    /* Primárias — Encontro das Águas (Rio Negro + Rio Solimões) */
-    --primary: 203 84% 30%; /* #0B5D8A */
-    --primary-mid: 199 71% 38%; /* #1B7BA8 */
-    --primary-light: 200 64% 54%; /* #3DA5D9 */
-    --primary-foreground: 0 0% 100%;
+@theme {
+  /* Primárias — Encontro das Águas (Rio Negro + Rio Solimões) */
+  --color-primary: #0b5d8a;
+  --color-primary-mid: #1b7ba8;
+  --color-primary-light: #3da5d9;
+  --color-primary-foreground: #ffffff;
 
-    /* Verde — Floresta Amazônica */
-    --secondary: 143 60% 33%; /* #22874A */
-    --secondary-dark: 143 57% 26%; /* #1A6B3C */
-    --secondary-light: 143 56% 75%; /* #A8E4BC */
-    --secondary-foreground: 0 0% 100%;
+  /* Verde — Floresta Amazônica */
+  --color-secondary: #22874a;
+  --color-secondary-dark: #1a6b3c;
+  --color-secondary-light: #a8e4bc;
+  --color-secondary-foreground: #ffffff;
 
-    /* Dourado — Pôr do Sol no Rio */
-    --accent: 38 92% 48%; /* #E8960C */
-    --accent-light: 44 95% 68%; /* #FACC5F */
-    --accent-foreground: 0 0% 100%;
+  /* Dourado — Pôr do Sol no Rio */
+  --color-accent: #e8960c;
+  --color-accent-light: #facc5f;
+  --color-accent-foreground: #ffffff;
 
-    /* Status */
-    --success: 143 60% 33%; /* #22874A */
-    --success-bg: 143 56% 93%; /* #E3F5E8 */
-    --warning: 38 92% 48%; /* #E8960C */
-    --warning-bg: 44 100% 95%; /* #FFF4E5 */
-    --destructive: 356 61% 51%; /* #D63031 */
-    --destructive-bg: 0 64% 96%; /* #FDEAEA */
-    --info: 203 84% 30%; /* #0B5D8A */
-    --info-bg: 199 68% 96%; /* #EDF6FB */
+  /* Status */
+  --color-success: #22874a;
+  --color-success-bg: #e3f5e8;
+  --color-warning: #e8960c;
+  --color-warning-bg: #fff4e5;
+  --color-destructive: #d63031;
+  --color-destructive-bg: #fdeaea;
+  --color-info: #0b5d8a;
+  --color-info-bg: #edf6fb;
 
-    /* Neutros */
-    --background: 210 17% 98%; /* #F5F7F8 */
-    --foreground: 210 53% 11%; /* #0D1B2A */
+  /* Neutros */
+  --color-background: #f5f7f8;
+  --color-foreground: #0d1b2a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0d1b2a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0d1b2a;
+  --color-muted: #e2e8ed;
+  --color-muted-foreground: #7a8d9c;
+  --color-border: #e2e8ed;
+  --color-input: #e2e8ed;
+  --color-ring: #0b5d8a;
 
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 210 53% 11%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 53% 11%;
-
-    --muted: 200 20% 92%; /* #E2E8ED */
-    --muted-foreground: 206 20% 54%; /* #7A8D9C */
-
-    --border: 200 20% 92%; /* #E2E8ED */
-    --input: 200 20% 92%;
-    --ring: 203 84% 30%;
-
-    --radius: 0.5rem;
-  }
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
 }
