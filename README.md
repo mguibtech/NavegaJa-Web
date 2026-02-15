@@ -1,36 +1,171 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NavegaJá Admin - Painel Administrativo
 
-## Getting Started
+Sistema web de gestão administrativa para o NavegaJá, plataforma de transporte fluvial.
 
-First, run the development server:
+## 🚀 Tecnologias
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Next.js 16** - Framework React com App Router
+- **TypeScript** - Tipagem estática
+- **Tailwind CSS** - Estilização
+- **Shadcn/ui** - Componentes de UI
+- **React Query** - Gerenciamento de estado servidor
+- **Axios** - Cliente HTTP
+- **Leaflet** - Mapas (em integração)
+- **Recharts** - Gráficos e visualizações
+
+## 📁 Estrutura do Projeto
+
+```
+navegaja-web/
+├── src/
+│   ├── app/                      # Páginas (App Router)
+│   │   ├── dashboard/           # Painel administrativo
+│   │   │   ├── safety/          # Módulo de segurança
+│   │   │   │   ├── sos-alerts/  # Alertas SOS
+│   │   │   │   ├── emergency-contacts/
+│   │   │   │   └── checklists/
+│   │   │   └── page.tsx         # Dashboard home
+│   │   ├── login/               # Autenticação
+│   │   └── layout.tsx           # Layout raiz
+│   ├── components/
+│   │   ├── layout/              # Componentes de layout
+│   │   │   ├── sidebar.tsx      # Menu lateral
+│   │   │   ├── header.tsx       # Cabeçalho
+│   │   │   └── providers.tsx    # React Query Provider
+│   │   └── ui/                  # Componentes Shadcn
+│   ├── lib/
+│   │   ├── api.ts               # Cliente API e endpoints
+│   │   └── utils.ts             # Utilitários
+│   └── types/
+│       └── safety.ts            # Tipos TypeScript
+├── middleware.ts                # Proteção de rotas
+└── .env.local                   # Variáveis de ambiente
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔧 Instalação
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Instalar dependências
+yarn install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Configurar variáveis de ambiente
+# Editar .env.local com a URL da API
+NEXT_PUBLIC_API_URL=http://localhost:3000
+```
 
-## Learn More
+## 🏃 Executar
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Desenvolvimento
+yarn dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Build de produção
+yarn build
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Iniciar produção
+yarn start
+```
 
-## Deploy on Vercel
+O aplicativo estará disponível em [http://localhost:3000](http://localhost:3000)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔐 Autenticação
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O sistema utiliza JWT para autenticação. Ao fazer login:
+
+1. O token é armazenado no localStorage
+2. Todas as requisições incluem o token no header Authorization
+3. O middleware protege as rotas do dashboard
+4. Logout limpa o localStorage e redireciona para /login
+
+## 📱 Funcionalidades
+
+### Dashboard Principal
+- Visão geral de estatísticas
+- Viagens ativas, reservas, encomendas
+- Alertas SOS em destaque
+
+### Módulo de Segurança
+
+#### Alertas SOS
+- Visualização em tempo real de alertas de emergência
+- Mapa com localização dos alertas
+- Informações detalhadas (usuário, tipo, localização, hora)
+- Sistema de resolução de alertas
+- Botão de chamada direta
+- Atualização automática a cada 10 segundos
+
+#### Contatos de Emergência
+- Listagem de serviços públicos:
+  - Marinha
+  - Bombeiros
+  - Polícia
+  - SAMU
+  - Defesa Civil
+  - Capitania dos Portos
+- Botão de chamada direta
+- Organização por prioridade
+
+#### Checklists de Segurança
+- Monitoramento de verificações pré-viagem
+- Histórico de checklists
+- Estatísticas de aprovação
+
+## 🔌 Integração com API
+
+O arquivo `src/lib/api.ts` centraliza todas as chamadas à API:
+
+```typescript
+// Autenticação
+auth.login(phone, password)
+auth.me()
+
+// Segurança
+safety.getEmergencyContacts()
+safety.getActiveSosAlerts()
+safety.resolveSosAlert(id, status, notes)
+
+// Estatísticas
+stats.getDashboardStats()
+```
+
+## 🎨 Temas e Estilos
+
+O projeto utiliza Tailwind CSS com variáveis CSS para temas. Para personalizar cores:
+
+1. Editar `src/app/globals.css`
+2. Modificar variáveis CSS:
+   - `--primary`
+   - `--secondary`
+   - `--accent`
+   - `--muted`
+   - etc.
+
+## 📝 Próximos Passos
+
+- [ ] Integrar mapa Leaflet na página de SOS Alerts
+- [ ] Adicionar páginas de gestão:
+  - [ ] Usuários
+  - [ ] Viagens
+  - [ ] Reservas
+  - [ ] Encomendas
+  - [ ] Cupons
+- [ ] Implementar sistema de notificações em tempo real
+- [ ] Adicionar gráficos e dashboards analíticos
+- [ ] Implementar filtros e busca avançada
+- [ ] Adicionar exportação de relatórios
+- [ ] Sistema de permissões por role
+- [ ] Logs de auditoria
+
+## 🤝 Backend
+
+Este projeto se conecta ao backend NestJS localizado em `../backend`.
+
+Certifique-se de que o backend está rodando em `http://localhost:3000` ou configure a URL em `.env.local`.
+
+## 📞 Suporte
+
+Para dúvidas ou problemas, contate a equipe de desenvolvimento NavegaJá.
+
+---
+
+**© 2026 NavegaJá - Plataforma de Transporte Fluvial**
