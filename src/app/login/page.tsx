@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { auth } from '@/lib/api';
+import { ErrorAlert } from '@/components/error-alert';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [statusCode, setStatusCode] = useState<number | undefined>();
   const [isOnline, setIsOnline] = useState(true); // Estado para evitar hydration mismatch
 
   // Atualizar status online/offline após montagem (client-side only)
@@ -39,6 +41,7 @@ export default function LoginPage() {
     e.stopPropagation(); // Impedir propagação
     setLoading(true);
     setError('');
+    setStatusCode(undefined);
 
     console.log('🔐 Tentando fazer login com:', { email });
     setDebugInfo('');
@@ -90,9 +93,7 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
 
       setError(errorMessage);
       setDebugInfo(debugText);
-
-      // IMPORTANTE: Alert para garantir que você veja o erro
-      alert(`❌ ERRO NO LOGIN:\n\n${errorMessage}\n\n${debugText}`);
+      setStatusCode(err.response?.status);
     } finally {
       setLoading(false);
     }
@@ -137,17 +138,11 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
               />
             </div>
             {error && (
-              <div className="space-y-2">
-                <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-                  {error}
-                </div>
-                {debugInfo && (
-                  <details className="rounded-md bg-gray-50 p-3 text-xs">
-                    <summary className="cursor-pointer font-medium">Debug Info</summary>
-                    <pre className="mt-2 whitespace-pre-wrap">{debugInfo}</pre>
-                  </details>
-                )}
-              </div>
+              <ErrorAlert
+                error={error}
+                statusCode={statusCode}
+                debugInfo={debugInfo}
+              />
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
