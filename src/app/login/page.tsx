@@ -15,14 +15,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    console.log('🔐 Tentando fazer login com:', { email });
+    setDebugInfo('');
+
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      console.log('📡 Enviando requisição para:', `${apiUrl}/auth/login-web`);
+      setDebugInfo(`Tentando conectar em: ${apiUrl}/auth/login-web`);
+
       const data = await auth.login(email, password);
+
+      console.log('✅ Login bem-sucedido!', data);
 
       // Salvar token e usuário no localStorage
       localStorage.setItem('token', data.accessToken);
@@ -31,10 +41,35 @@ export default function LoginPage() {
       // Salvar token no cookie também (para o middleware)
       document.cookie = `token=${data.accessToken}; path=/; max-age=604800`; // 7 dias
 
+      console.log('🍪 Token salvo no cookie e localStorage');
+
       // Forçar reload da página para o middleware detectar o cookie
       window.location.href = '/dashboard';
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erro ao fazer login. Verifique suas credenciais.');
+      console.error('❌ Erro no login:', err);
+      console.error('Response:', err.response);
+      console.error('Data:', err.response?.data);
+      console.error('Status:', err.response?.status);
+
+      let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
+
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (!navigator.onLine) {
+        errorMessage = 'Sem conexão com a internet.';
+      } else if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+        errorMessage = 'Servidor não está respondendo. Verifique se o backend está rodando.';
+      }
+
+      setError(errorMessage);
+      setDebugInfo(`
+Status: ${err.response?.status || 'N/A'}
+URL: ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login-web
+Message: ${err.message}
+Response: ${JSON.stringify(err.response?.data, null, 2)}
+      `);
     } finally {
       setLoading(false);
     }
@@ -79,8 +114,16 @@ export default function LoginPage() {
               />
             </div>
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {error}
+              <div className="space-y-2">
+                <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+                  {error}
+                </div>
+                {debugInfo && (
+                  <details className="rounded-md bg-gray-50 p-3 text-xs">
+                    <summary className="cursor-pointer font-medium">Debug Info</summary>
+                    <pre className="mt-2 whitespace-pre-wrap">{debugInfo}</pre>
+                  </details>
+                )}
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
