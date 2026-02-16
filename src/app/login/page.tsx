@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Ship } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [isOnline, setIsOnline] = useState(true); // Estado para evitar hydration mismatch
+
+  // Atualizar status online/offline após montagem (client-side only)
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,7 +158,7 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
             <div className="mt-4 rounded border border-dashed border-gray-300 bg-gray-50 p-2 text-xs">
               <p className="font-medium">🔧 Info Técnica:</p>
               <p>Backend: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}</p>
-              <p>Status: {typeof window !== 'undefined' && navigator.onLine ? '🟢 Online' : '🔴 Offline'}</p>
+              <p>Status: {isOnline ? '🟢 Online' : '🔴 Offline'}</p>
             </div>
           </form>
         </CardContent>
