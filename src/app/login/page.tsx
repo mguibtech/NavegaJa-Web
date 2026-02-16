@@ -18,7 +18,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
   const [statusCode, setStatusCode] = useState<number | undefined>();
-  const [isOnline, setIsOnline] = useState(true); // Estado para evitar hydration mismatch
+  const [isOnline, setIsOnline] = useState(true);
+  const [canSubmit, setCanSubmit] = useState(true); // Controle para evitar submits rápidos
 
   // Atualizar status online/offline após montagem (client-side only)
   useEffect(() => {
@@ -38,7 +39,15 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Impedir propagação
+    e.stopPropagation();
+
+    // Bloquear se já estiver processando ou se tiver erro recente
+    if (!canSubmit || loading) {
+      console.log('⏸️ Aguarde antes de tentar novamente');
+      return;
+    }
+
+    setCanSubmit(false);
     setLoading(true);
     setError('');
     setStatusCode(undefined);
@@ -94,6 +103,11 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
       setError(errorMessage);
       setDebugInfo(debugText);
       setStatusCode(err.response?.status);
+
+      // Bloquear reenvio por 5 segundos após erro para garantir leitura
+      setTimeout(() => {
+        setCanSubmit(true);
+      }, 5000);
     } finally {
       setLoading(false);
     }
@@ -144,8 +158,8 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
                 debugInfo={debugInfo}
               />
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar'}
+            <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
+              {loading ? 'Entrando...' : !canSubmit ? 'Aguarde...' : 'Entrar'}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               Acesso restrito a administradores e capitães

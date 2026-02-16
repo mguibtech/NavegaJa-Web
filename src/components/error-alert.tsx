@@ -60,11 +60,11 @@ export function ErrorAlert({ error, statusCode, debugInfo }: ErrorAlertProps) {
   const Icon = config.icon;
 
   return (
-    <div className="space-y-2">
-      <Alert variant={config.variant}>
-        <Icon className="h-4 w-4" />
-        <AlertTitle>{config.title}</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+    <div className="animate-in fade-in-50 space-y-2 duration-200">
+      <Alert variant={config.variant} className="border-2">
+        <Icon className="h-5 w-5" />
+        <AlertTitle className="text-base font-semibold">{config.title}</AlertTitle>
+        <AlertDescription className="mt-2 text-sm">{error}</AlertDescription>
       </Alert>
 
       {debugInfo && (
