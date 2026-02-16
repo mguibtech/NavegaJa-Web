@@ -19,6 +19,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Impedir propagação
     setLoading(true);
     setError('');
 
@@ -63,13 +64,18 @@ export default function LoginPage() {
         errorMessage = 'Servidor não está respondendo. Verifique se o backend está rodando.';
       }
 
-      setError(errorMessage);
-      setDebugInfo(`
+      const debugText = `
 Status: ${err.response?.status || 'N/A'}
 URL: ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login-web
 Message: ${err.message}
 Response: ${JSON.stringify(err.response?.data, null, 2)}
-      `);
+      `;
+
+      setError(errorMessage);
+      setDebugInfo(debugText);
+
+      // IMPORTANTE: Alert para garantir que você veja o erro
+      alert(`❌ ERRO NO LOGIN:\n\n${errorMessage}\n\n${debugText}`);
     } finally {
       setLoading(false);
     }
@@ -132,6 +138,11 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
             <p className="text-center text-xs text-muted-foreground">
               Acesso restrito a administradores e capitães
             </p>
+            <div className="mt-4 rounded border border-dashed border-gray-300 bg-gray-50 p-2 text-xs">
+              <p className="font-medium">🔧 Info Técnica:</p>
+              <p>Backend: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}</p>
+              <p>Status: {typeof window !== 'undefined' && navigator.onLine ? '🟢 Online' : '🔴 Offline'}</p>
+            </div>
           </form>
         </CardContent>
       </Card>
