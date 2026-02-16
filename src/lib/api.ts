@@ -63,18 +63,49 @@ export const safety = {
   },
 };
 
+// Trips API
+export const trips = {
+  getAll: async (filters?: any) => {
+    const { data } = await api.get('/trips', { params: filters });
+    return data;
+  },
+  getById: async (id: string) => {
+    const { data } = await api.get(`/trips/${id}`);
+    return data;
+  },
+  create: async (tripData: any) => {
+    const { data } = await api.post('/trips', tripData);
+    return data;
+  },
+  update: async (id: string, tripData: any) => {
+    const { data } = await api.patch(`/trips/${id}`, tripData);
+    return data;
+  },
+  delete: async (id: string) => {
+    const { data } = await api.delete(`/trips/${id}`);
+    return data;
+  },
+  cancel: async (id: string, reason?: string) => {
+    const { data } = await api.patch(`/trips/${id}`, {
+      status: 'cancelled',
+      notes: reason
+    });
+    return data;
+  },
+};
+
 // Stats API (para dashboard)
 export const stats = {
   getDashboardStats: async () => {
     // Você pode criar um endpoint específico no backend ou fazer múltiplas chamadas
-    const [trips, bookings, shipments, sosAlerts] = await Promise.all([
+    const [tripsData, bookings, shipments, sosAlerts] = await Promise.all([
       api.get('/trips'),
       api.get('/bookings'),
       api.get('/shipments'),
       api.get('/safety/sos/active'),
     ]);
     return {
-      trips: trips.data.length,
+      trips: tripsData.data.length,
       bookings: bookings.data.length,
       shipments: shipments.data.length,
       sosAlerts: sosAlerts.data.length,
