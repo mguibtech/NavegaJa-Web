@@ -3,18 +3,26 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login');
-  const isDashboard = request.nextUrl.pathname.startsWith('/dashboard') ||
-                      request.nextUrl.pathname === '/';
+  const { pathname } = request.nextUrl;
 
-  // Se está tentando acessar dashboard sem token
-  if (isDashboard && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Rotas públicas que não precisam de autenticação
+  const publicPaths = ['/login', '/track'];
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
+
+  // Rotas protegidas que precisam de autenticação
+  const protectedPaths = ['/dashboard'];
+  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path)) || pathname === '/';
+
+  // Se está tentando acessar rota protegida sem token
+  if (isProtectedPath && !token) {
+    const url = new URL('/login', request.url);
+    return NextResponse.redirect(url);
   }
 
-  // Se está logado e tenta acessar login
-  if (isAuthPage && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Se está logado e tenta acessar página de login ou root
+  if ((isPublicPath || pathname === '/') && token) {
+    const url = new URL('/dashboard', request.url);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

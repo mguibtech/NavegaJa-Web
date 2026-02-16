@@ -1,14 +1,16 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Ship, Filter, Plus, MapPin, Calendar, Users, DollarSign, Eye, Trash2, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { trips } from '@/lib/api';
 import { Trip, TripStatus, TripType } from '@/types/trip';
 import { format } from 'date-fns';
@@ -87,11 +89,11 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
             <div className="grid gap-2 text-sm md:grid-cols-2">
               <div>
                 <p className="font-medium">Partida Prevista:</p>
-                <p>{format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                <p>{trip.scheduledDeparture ? format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
               </div>
               <div>
                 <p className="font-medium">Chegada Prevista:</p>
-                <p>{format(new Date(trip.scheduledArrival), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                <p>{trip.scheduledArrival ? format(new Date(trip.scheduledArrival), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
               </div>
               {trip.actualDeparture && (
                 <div>
@@ -146,7 +148,7 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
                 <DollarSign className="h-4 w-4" />
                 Preço
               </div>
-              <p className="text-2xl font-bold">R$ {trip.price.toFixed(2)}</p>
+              <p className="text-2xl font-bold">R$ {trip.price ? Number(trip.price).toFixed(2) : '0.00'}</p>
             </div>
           </div>
 
@@ -168,6 +170,8 @@ export default function TripsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Query para buscar viagens
   const { data: tripsData = [], isLoading, refetch } = useQuery({
@@ -190,16 +194,30 @@ export default function TripsPage() {
   });
 
   // Filtrar por busca
-  const filteredTrips = tripsData.filter((trip: Trip) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      trip.route?.origin.toLowerCase().includes(search) ||
-      trip.route?.destination.toLowerCase().includes(search) ||
-      trip.boat?.name.toLowerCase().includes(search) ||
-      trip.captain?.name.toLowerCase().includes(search)
-    );
-  });
+  const filteredTrips = useMemo(() => {
+    return tripsData.filter((trip: Trip) => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase();
+      return (
+        trip.route?.origin.toLowerCase().includes(search) ||
+        trip.route?.destination.toLowerCase().includes(search) ||
+        trip.boat?.name.toLowerCase().includes(search) ||
+        trip.captain?.name.toLowerCase().includes(search)
+      );
+    });
+  }, [tripsData, searchTerm]);
+
+  // Paginação
+  const totalPages = Math.ceil(filteredTrips.length / itemsPerPage);
+  const paginatedTrips = filteredTrips.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset para página 1 quando filtros mudam
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter]);
 
   return (
     <div className="space-y-6">
@@ -325,7 +343,7 @@ export default function TripsPage() {
             </p>
           ) : (
             <div className="space-y-4">
-              {filteredTrips.map((trip: Trip) => (
+              {paginatedTrips.map((trip: Trip) => (
                 <div
                   key={trip.id}
                   className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50"
@@ -345,7 +363,7 @@ export default function TripsPage() {
                       <div>
                         <p className="text-sm text-muted-foreground">Partida</p>
                         <p className="font-medium">
-                          {format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          {trip.scheduledDeparture ? format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não definida'}
                         </p>
                       </div>
                       <div>
@@ -373,6 +391,17 @@ export default function TripsPage() {
                   </div>
                 </div>
               ))}
+
+              {/* Paginação */}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredTrips.length}
+                />
+              )}
             </div>
           )}
         </CardContent>

@@ -20,15 +20,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Variável para controlar se já estamos redirecionando
+let isRedirecting = false;
+
 // Interceptor para tratar erros de auth
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+      if (typeof window !== 'undefined' && !isRedirecting) {
+        // Só redireciona se não estiver na página de login
+        const currentPath = window.location.pathname;
+        if (!currentPath.startsWith('/login')) {
+          isRedirecting = true;
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          // Remove o cookie também
+          document.cookie = 'token=; path=/; max-age=0';
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -94,11 +104,43 @@ export const trips = {
   },
 };
 
+// Shipments API
+export const shipments = {
+  getAll: async (filters?: any) => {
+    const { data } = await api.get('/shipments', { params: filters });
+    return data;
+  },
+  getById: async (id: string) => {
+    const { data } = await api.get(`/shipments/${id}`);
+    return data;
+  },
+  getByTrackingCode: async (trackingCode: string) => {
+    const { data } = await api.get(`/shipments/track/${trackingCode}`);
+    return data;
+  },
+  create: async (shipmentData: any) => {
+    const { data } = await api.post('/shipments', shipmentData);
+    return data;
+  },
+  update: async (id: string, shipmentData: any) => {
+    const { data } = await api.patch(`/shipments/${id}`, shipmentData);
+    return data;
+  },
+  delete: async (id: string) => {
+    const { data } = await api.delete(`/shipments/${id}`);
+    return data;
+  },
+  updateStatus: async (id: string, status: string) => {
+    const { data } = await api.patch(`/shipments/${id}`, { status });
+    return data;
+  },
+};
+
 // Stats API (para dashboard)
 export const stats = {
   getDashboardStats: async () => {
     // Você pode criar um endpoint específico no backend ou fazer múltiplas chamadas
-    const [tripsData, bookings, shipments, sosAlerts] = await Promise.all([
+    const [tripsData, bookings, shipmentsData, sosAlerts] = await Promise.all([
       api.get('/trips'),
       api.get('/bookings'),
       api.get('/shipments'),
@@ -107,7 +149,7 @@ export const stats = {
     return {
       trips: tripsData.data.length,
       bookings: bookings.data.length,
-      shipments: shipments.data.length,
+      shipments: shipmentsData.data.length,
       sosAlerts: sosAlerts.data.length,
     };
   },
