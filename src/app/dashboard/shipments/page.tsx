@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Package, Filter, Search, MapPin, Calendar, User, DollarSign, Eye, X, Truck, CheckCircle2, Weight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Pagination } from '@/components/ui/pagination';
-import { shipments } from '@/lib/api';
+import { shipments, admin } from '@/lib/api';
 import { Shipment, ShipmentStatus } from '@/types/shipment';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ShipmentMap } from '@/components/shipment-map';
 
 // Badge de status
 function StatusBadge({ status }: { status: ShipmentStatus }) {
@@ -118,7 +120,7 @@ function ShipmentDetailsDialog({ shipment }: { shipment: Shipment }) {
               </div>
               <div>
                 <p className="font-medium">Preço:</p>
-                <p>R$ {shipment.price.toFixed(2)}</p>
+                <p>R$ {Number(shipment.price || 0).toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -130,9 +132,40 @@ function ShipmentDetailsDialog({ shipment }: { shipment: Shipment }) {
                 <Truck className="h-4 w-4" />
                 Viagem Associada
               </div>
-              <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Embarcação:</span> {shipment.trip.boat.name}</p>
-                <p><span className="font-medium">Partida:</span> {format(new Date(shipment.trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">Embarcação:</span> {shipment.trip.boat?.name || 'N/A'}</p>
+                <p><span className="font-medium">Partida:</span> {shipment.trip.scheduledDeparture ? format(new Date(shipment.trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
+
+              </div>
+            </div>
+          )}
+
+          {/* Mapa de Localização */}
+          {shipment.trip?.currentLat && shipment.trip?.currentLng && (
+            <div className="rounded-lg border p-4 bg-gradient-to-br from-blue-50 to-purple-50">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-900">
+                <MapPin className="h-4 w-4" />
+                Localização em Tempo Real
+              </div>
+              <ShipmentMap
+                latitude={Number(shipment.trip.currentLat)}
+                longitude={Number(shipment.trip.currentLng)}
+                shipmentCode={shipment.trackingCode}
+              />
+              <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                <span className="font-mono">
+                  📍 {Number(shipment.trip.currentLat).toFixed(6)}, {Number(shipment.trip.currentLng).toFixed(6)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const url = `https://www.google.com/maps?q=${shipment.trip!.currentLat},${shipment.trip!.currentLng}`;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  Abrir no Google Maps →
+                </Button>
               </div>
             </div>
           )}
@@ -178,21 +211,42 @@ function ShipmentDetailsDialog({ shipment }: { shipment: Shipment }) {
 
 export default function ShipmentsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // Query para buscar encomendas
-  const { data: shipmentsData = [], isLoading, refetch } = useQuery({
-    queryKey: ['shipments', statusFilter],
-    queryFn: () => {
-      const filters: any = {};
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      return shipments.getAll(filters);
+  const { data: shipmentsResponse, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-shipments', statusFilter],
+    queryFn: async () => {
+      const params: any = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      try {
+        return await admin.shipments.getAll(params);
+      } catch (err: any) {
+        console.error('Erro ao buscar encomendas:', err);
+        console.error('Status:', err.response?.status);
+        console.error('Data:', err.response?.data);
+        throw err;
+      }
     },
     refetchInterval: 30000,
+    retry: false,
   });
+
+  // Debug: ver resposta do backend
+  console.log('🔍 Resposta do backend:', shipmentsResponse);
+  console.log('🔍 Tipo:', typeof shipmentsResponse, 'Array?', Array.isArray(shipmentsResponse));
+  console.log('🔍 shipmentsResponse?.data:', shipmentsResponse?.data);
+
+  // Backend pode retornar array direto ou objeto com data
+  const shipmentsData = Array.isArray(shipmentsResponse)
+    ? shipmentsResponse
+    : (shipmentsResponse?.data || []);
+
+  console.log('🔍 shipmentsData final:', shipmentsData, 'length:', shipmentsData.length);
 
   // Filtrar por busca
   const filteredShipments = useMemo(() => {
@@ -380,12 +434,33 @@ export default function ShipmentsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3.5 w-3.5" />
-                        <span>R$ {shipment.price.toFixed(2)}</span>
+                        <span>R$ {Number(shipment.price || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 ml-4">
-                    <ShipmentDetailsDialog shipment={shipment} />
+                    {/* Botão de rastreamento no mapa */}
+                    {shipment.trip?.currentLat && shipment.trip?.currentLng && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = `https://www.google.com/maps?q=${shipment.trip!.currentLat},${shipment.trip!.currentLng}`;
+                          window.open(url, '_blank');
+                        }}
+                        title="Ver localização no mapa"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/shipments/${shipment.id}`)}
+                      title="Ver detalhes completos"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}

@@ -35,25 +35,39 @@ export interface Captain {
 
 export interface Trip {
   id: string;
-  routeId: string;
+  routeId: string | null;
   route?: Route;
   boatId: string;
   boat?: Boat;
   captainId: string;
   captain?: Captain;
-  type: TripType;
+  type?: TripType;
   status: TripStatus;
-  scheduledDeparture: Date;
-  scheduledArrival: Date;
+  // Campos da API real
+  origin: string;
+  destination: string;
+  departureAt: string;
+  estimatedArrivalAt: string;
+  currentLat?: number | null;
+  currentLng?: number | null;
+  totalSeats: number;
+  availableSeats: number;
+  price: string | number;
+  discount?: number;
+  cargoPriceKg?: string;
+  cargoCapacityKg?: number | null;
+  availableCargoKg?: number | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Campos legados (para compatibilidade)
+  scheduledDeparture?: Date;
+  scheduledArrival?: Date;
   actualDeparture?: Date;
   actualArrival?: Date;
-  passengerCount: number;
-  maxPassengers: number;
-  price: number;
-  notes?: string;
+  passengerCount?: number;
+  maxPassengers?: number;
   weatherCondition?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface TripFilters {

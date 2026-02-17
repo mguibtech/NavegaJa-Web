@@ -17,6 +17,7 @@ export function SosMap({ alerts }: SosMapProps) {
     // Carregar Leaflet dinamicamente apenas no cliente
     import('leaflet').then((L) => {
       // Importar CSS do Leaflet
+      // @ts-ignore
       import('leaflet/dist/leaflet.css');
 
       // Se já existe uma instância do mapa, removê-la
@@ -34,6 +35,9 @@ export function SosMap({ alerts }: SosMapProps) {
 
       // Centro da Amazônia (Manaus aproximadamente)
       const center: [number, number] = [-3.1190, -60.0217];
+
+      // Verificar se mapRef.current existe
+      if (!mapRef.current) return;
 
       // Criar mapa
       const map = L.map(mapRef.current).setView(center, 11);

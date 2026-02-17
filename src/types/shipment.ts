@@ -23,6 +23,8 @@ export interface Shipment {
   trip?: {
     id: string;
     scheduledDeparture: string;
+    currentLat?: number;
+    currentLng?: number;
     boat: {
       name: string;
     };

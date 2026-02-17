@@ -107,8 +107,8 @@ export default function EmergencyContactsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Tipos</SelectItem>
-                  {uniqueTypes.map((type: string) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  {uniqueTypes.map((type) => (
+                    <SelectItem key={type as string} value={type as string}>{type as string}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -121,8 +121,8 @@ export default function EmergencyContactsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Regiões</SelectItem>
-                  {uniqueRegions.map((region: string) => (
-                    <SelectItem key={region} value={region}>{region}</SelectItem>
+                  {uniqueRegions.map((region) => (
+                    <SelectItem key={region as string} value={region as string}>{region as string}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

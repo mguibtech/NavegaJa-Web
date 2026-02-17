@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Pagination } from '@/components/ui/pagination';
-import { trips } from '@/lib/api';
+import { trips, admin } from '@/lib/api';
 import { Trip, TripStatus, TripType } from '@/types/trip';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,20 +25,22 @@ function StatusBadge({ status }: { status: TripStatus }) {
     [TripStatus.CANCELLED]: { variant: 'destructive', label: 'Cancelada' },
   };
 
-  const config = variants[status];
+  const config = variants[status] || variants[TripStatus.SCHEDULED];
 
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
 
 // Badge de tipo
-function TypeBadge({ type }: { type: TripType }) {
+function TypeBadge({ type }: { type?: TripType }) {
   const labels: Record<TripType, string> = {
     [TripType.PASSENGER]: 'Passageiros',
     [TripType.CARGO]: 'Carga',
     [TripType.MIXED]: 'Misto',
   };
 
-  return <Badge variant="outline">{labels[type]}</Badge>;
+  if (!type) return null;
+
+  return <Badge variant="outline">{labels[type] || 'N/A'}</Badge>;
 }
 
 // Modal de detalhes
@@ -74,9 +76,9 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
               Rota
             </div>
             <div className="space-y-1 text-sm">
-              <p><span className="font-medium">Origem:</span> {trip.route?.origin || 'N/A'}</p>
-              <p><span className="font-medium">Destino:</span> {trip.route?.destination || 'N/A'}</p>
-              <p><span className="font-medium">Distância:</span> {trip.route?.distance || 0} km</p>
+              <p><span className="font-medium">Origem:</span> {trip.origin || 'N/A'}</p>
+              <p><span className="font-medium">Destino:</span> {trip.destination || 'N/A'}</p>
+              {trip.route?.distance && <p><span className="font-medium">Distância:</span> {trip.route.distance} km</p>}
             </div>
           </div>
 
@@ -89,24 +91,12 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
             <div className="grid gap-2 text-sm md:grid-cols-2">
               <div>
                 <p className="font-medium">Partida Prevista:</p>
-                <p>{trip.scheduledDeparture ? format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
+                <p>{trip.departureAt ? format(new Date(trip.departureAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
               </div>
               <div>
                 <p className="font-medium">Chegada Prevista:</p>
-                <p>{trip.scheduledArrival ? format(new Date(trip.scheduledArrival), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
+                <p>{trip.estimatedArrivalAt ? format(new Date(trip.estimatedArrivalAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}</p>
               </div>
-              {trip.actualDeparture && (
-                <div>
-                  <p className="font-medium">Partida Real:</p>
-                  <p>{format(new Date(trip.actualDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-                </div>
-              )}
-              {trip.actualArrival && (
-                <div>
-                  <p className="font-medium">Chegada Real:</p>
-                  <p>{format(new Date(trip.actualArrival), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -141,7 +131,7 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
                 <Users className="h-4 w-4" />
                 Passageiros
               </div>
-              <p className="text-2xl font-bold">{trip.passengerCount}/{trip.maxPassengers}</p>
+              <p className="text-2xl font-bold">{trip.totalSeats - trip.availableSeats}/{trip.totalSeats}</p>
             </div>
             <div className="rounded-lg border p-4">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -173,23 +163,25 @@ export default function TripsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Query para buscar viagens
-  const { data: tripsData = [], isLoading, refetch } = useQuery({
-    queryKey: ['trips', statusFilter, typeFilter],
+  // Query para buscar viagens (usando endpoint admin)
+  const { data: tripsResponse, isLoading, refetch } = useQuery({
+    queryKey: ['admin-trips', statusFilter, typeFilter],
     queryFn: () => {
-      const filters: any = {};
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      if (typeFilter !== 'all') filters.type = typeFilter;
-      return trips.getAll(filters);
+      const params: any = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      return admin.trips.getAll(params);
     },
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
-  // Mutation para cancelar viagem
+  const tripsData = tripsResponse?.data || [];
+
+  // Mutation para cancelar viagem (usando endpoint admin)
   const cancelMutation = useMutation({
-    mutationFn: (id: string) => trips.cancel(id, 'Cancelada pelo administrador'),
+    mutationFn: (id: string) => admin.trips.updateStatus(id, 'cancelled'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-trips'] });
     },
   });
 
@@ -199,8 +191,8 @@ export default function TripsPage() {
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
-        trip.route?.origin.toLowerCase().includes(search) ||
-        trip.route?.destination.toLowerCase().includes(search) ||
+        trip.origin?.toLowerCase().includes(search) ||
+        trip.destination?.toLowerCase().includes(search) ||
         trip.boat?.name.toLowerCase().includes(search) ||
         trip.captain?.name.toLowerCase().includes(search)
       );
@@ -357,13 +349,13 @@ export default function TripsPage() {
                       <div>
                         <p className="text-sm text-muted-foreground">Rota</p>
                         <p className="font-medium">
-                          {trip.route?.origin} → {trip.route?.destination}
+                          {trip.origin} → {trip.destination}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Partida</p>
                         <p className="font-medium">
-                          {trip.scheduledDeparture ? format(new Date(trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não definida'}
+                          {trip.departureAt ? format(new Date(trip.departureAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não definida'}
                         </p>
                       </div>
                       <div>
@@ -372,7 +364,7 @@ export default function TripsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Passageiros</p>
-                        <p className="font-medium">{trip.passengerCount}/{trip.maxPassengers}</p>
+                        <p className="font-medium">{trip.totalSeats - trip.availableSeats}/{trip.totalSeats}</p>
                       </div>
                     </div>
                   </div>

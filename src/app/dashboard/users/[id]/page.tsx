@@ -1,50 +1,26 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Mail, Phone, Star, Ship, Calendar, Award, MapPin, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { admin } from '@/lib/api';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function UserDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const userId = params.id as string;
 
-  // Dados mockados - em produção viria da API
-  const user = {
-    id: userId,
-    name: 'João da Silva',
-    email: 'joao@example.com',
-    phone: '+5592988888888',
-    cpf: '123.456.789-00',
-    role: 'passenger',
-    rating: 4.8,
-    totalTrips: 15,
-    totalPoints: 450,
-    level: 'Navegador Experiente',
-    referralCode: 'JOAO2026',
-    createdAt: '2025-01-15T10:00:00Z',
-    avatarUrl: null,
-  };
-
-  const recentTrips = [
-    {
-      id: '1',
-      route: 'Manaus → Parintins',
-      date: '2026-02-10',
-      status: 'completed',
-      rating: 5,
-    },
-    {
-      id: '2',
-      route: 'Parintins → Manaus',
-      date: '2026-02-05',
-      status: 'completed',
-      rating: 4,
-    },
-  ];
+  // Query para buscar dados do usuário
+  const { data: user, isLoading } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => admin.users.getById(userId),
+  });
 
   const getRoleBadge = (role: string) => {
     const configs = {
@@ -61,6 +37,25 @@ export default function UserDetailsPage() {
       </Badge>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center">
+        <p className="text-lg font-medium">Usuário não encontrado</p>
+        <Button onClick={() => router.back()} className="mt-4">
+          Voltar
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -129,7 +124,7 @@ export default function UserDetailsPage() {
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Membro desde</p>
                 <p className="text-sm font-medium">
-                  {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                  {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                 </p>
               </div>
             </div>
@@ -138,128 +133,122 @@ export default function UserDetailsPage() {
 
         {/* Estatísticas */}
         <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+          {/* Status */}
           <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-                <Star className="h-4 w-4 text-accent" />
-                Avaliação Média
+                <Shield className="h-4 w-4 text-accent" />
+                Status da Conta
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-accent">{user.rating}</span>
-                <span className="text-2xl text-muted-foreground">/5.0</span>
-              </div>
-              <div className="flex items-center gap-1 mt-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`h-5 w-5 ${
-                      star <= Math.floor(user.rating)
-                        ? 'fill-accent text-accent'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
-                ))}
+              <Badge
+                className={
+                  user.status === 'active'
+                    ? 'bg-green-100 text-green-800 border-green-300'
+                    : user.status === 'suspended'
+                    ? 'bg-red-100 text-red-800 border-red-300'
+                    : 'bg-gray-100 text-gray-800 border-gray-300'
+                }
+              >
+                {user.status === 'active' ? 'Ativo' : user.status === 'suspended' ? 'Suspenso' : 'Inativo'}
+              </Badge>
+              <div className="mt-3 space-y-1 text-sm">
+                {user.emailVerified && (
+                  <p className="text-green-600 flex items-center gap-1">
+                    <span>✓</span> Email verificado
+                  </p>
+                )}
+                {user.phoneVerified && (
+                  <p className="text-green-600 flex items-center gap-1">
+                    <span>✓</span> Telefone verificado
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-secondary shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-                <Ship className="h-4 w-4 text-secondary" />
-                Total de Viagens
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-5xl font-bold text-secondary">{user.totalTrips}</div>
-              <p className="text-sm text-muted-foreground mt-2">Viagens realizadas</p>
-            </CardContent>
-          </Card>
+          {/* Último Login */}
+          {user.lastLogin && (
+            <Card className="border-l-4 border-l-secondary shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-secondary" />
+                  Último Acesso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-bold text-secondary">
+                  {format(new Date(user.lastLogin), "dd/MM/yyyy", { locale: ptBR })}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {format(new Date(user.lastLogin), "HH:mm", { locale: ptBR })}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
-          {user.role === 'passenger' && (
-            <>
-              <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
-                    <Award className="h-4 w-4 text-primary" />
-                    Pontos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-5xl font-bold text-primary">{user.totalPoints}</div>
-                  <p className="text-sm text-muted-foreground mt-2">{user.level}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-l-4 border-l-accent/30 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-foreground/70">
-                    Código de Indicação
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Badge
-                    variant="outline"
-                    className="text-xl font-bold px-4 py-2 bg-accent/10 text-accent border-accent/30"
-                  >
-                    {user.referralCode}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground mt-2">Compartilhe e ganhe pontos!</p>
-                </CardContent>
-              </Card>
-            </>
+          {/* Data de Nascimento */}
+          {user.birthDate && (
+            <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground/70 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Data de Nascimento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-bold text-primary">
+                  {format(new Date(user.birthDate), "dd/MM/yyyy", { locale: ptBR })}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {Math.floor((new Date().getTime() - new Date(user.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365))} anos
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
 
-      {/* Viagens Recentes */}
-      <Card className="shadow-md">
-        <CardHeader className="border-b bg-muted/30">
-          <CardTitle className="flex items-center gap-2">
-            <Ship className="h-5 w-5 text-secondary" />
-            Viagens Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            {recentTrips.map((trip) => (
-              <div
-                key={trip.id}
-                className="flex items-center justify-between p-4 rounded-lg border hover:shadow-md transition-all hover:border-secondary/30"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-secondary/10 p-3">
-                    <Ship className="h-5 w-5 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">{trip.route}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(trip.date).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
+      {/* Endereço */}
+      {user.address && (
+        <Card className="shadow-md">
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Endereço
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              {user.address.street && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Rua</p>
+                  <p className="font-medium">{user.address.street}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`h-4 w-4 ${
-                          star <= trip.rating ? 'fill-accent text-accent' : 'text-muted-foreground'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <Badge className="bg-secondary/15 text-secondary border-secondary/30">
-                    Concluída
-                  </Badge>
+              )}
+              {user.address.city && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Cidade</p>
+                  <p className="font-medium">{user.address.city}</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+              {user.address.state && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Estado</p>
+                  <p className="font-medium">{user.address.state}</p>
+                </div>
+              )}
+              {user.address.zipCode && (
+                <div>
+                  <p className="text-sm text-muted-foreground">CEP</p>
+                  <p className="font-medium">{user.address.zipCode}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
