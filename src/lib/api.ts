@@ -63,6 +63,22 @@ export const safety = {
     const { data } = await api.get('/safety/emergency-contacts');
     return data;
   },
+  createEmergencyContact: async (contact: { name: string; type: string; phoneNumber: string; description?: string; region?: string; priority?: number }) => {
+    const { data } = await api.post('/safety/emergency-contacts', contact);
+    return data;
+  },
+  updateEmergencyContact: async (id: string, contact: { name?: string; type?: string; phoneNumber?: string; description?: string; region?: string; priority?: number }) => {
+    const { data } = await api.put(`/safety/emergency-contacts/${id}`, contact);
+    return data;
+  },
+  deleteEmergencyContact: async (id: string) => {
+    const { data } = await api.delete(`/safety/emergency-contacts/${id}`);
+    return data;
+  },
+  seedEmergencyContacts: async () => {
+    const { data } = await api.post('/safety/emergency-contacts/seed');
+    return data;
+  },
   getActiveSosAlerts: async () => {
     const { data } = await api.get('/safety/sos/active');
     return data;

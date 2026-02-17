@@ -82,7 +82,35 @@ export default function BookingsPage() {
     },
   });
 
-  const allBookings = Array.isArray(bookingsData) ? bookingsData : [];
+  const allBookings = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.data || []);
+
+  // Helper para calcular período
+  const getDateRange = (filter: string): { start: Date | null; end: Date | null } => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (filter) {
+      case 'today':
+        return { start: today, end: now };
+      case 'week': {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - 7);
+        return { start: weekStart, end: now };
+      }
+      case 'month': {
+        const monthStart = new Date(today);
+        monthStart.setMonth(today.getMonth() - 1);
+        return { start: monthStart, end: now };
+      }
+      case 'custom':
+        return {
+          start: startDate ? new Date(startDate) : null,
+          end: endDate ? new Date(endDate) : null,
+        };
+      default:
+        return { start: null, end: null };
+    }
+  };
 
   // Filtrar reservas
   const filteredBookings = useMemo(() => {
@@ -204,35 +232,9 @@ export default function BookingsPage() {
     }));
   };
 
-  // Helper para calcular período
-  const getDateRange = (filter: string): { start: Date | null; end: Date | null } => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    switch (filter) {
-      case 'today':
-        return { start: today, end: now };
-      case 'week':
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - 7);
-        return { start: weekStart, end: now };
-      case 'month':
-        const monthStart = new Date(today);
-        monthStart.setMonth(today.getMonth() - 1);
-        return { start: monthStart, end: now };
-      case 'custom':
-        return {
-          start: startDate ? new Date(startDate) : null,
-          end: endDate ? new Date(endDate) : null,
-        };
-      default:
-        return { start: null, end: null };
-    }
-  };
-
   // Analytics - Calcular métricas e tendências
   const analytics = useMemo(() => {
-    if (!Array.isArray(bookingsData) || bookingsData.length === 0) {
+    if (allBookings.length === 0) {
       return {
         revenueByDay: [],
         bookingsByDay: [],

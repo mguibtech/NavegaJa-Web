@@ -411,7 +411,28 @@ export default function SosAlertsPage() {
                         <div className="rounded-full bg-secondary/10 p-1.5">
                           <MapPin className="h-3.5 w-3.5 text-secondary" />
                         </div>
-                        <span className="text-sm text-foreground/60">{alert.location}</span>
+                        <span className="text-sm text-foreground/60">
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(alert.location!);
+                              if (parsed.latitude && parsed.longitude) {
+                                return (
+                                  <a
+                                    href={`https://www.google.com/maps?q=${parsed.latitude},${parsed.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-secondary underline"
+                                  >
+                                    {parsed.latitude.toFixed(6)}, {parsed.longitude.toFixed(6)}
+                                  </a>
+                                );
+                              }
+                            } catch {
+                              // plain text location
+                            }
+                            return alert.location;
+                          })()}
+                        </span>
                       </div>
                     )}
 

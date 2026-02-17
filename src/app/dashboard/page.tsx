@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity, Plus } from 'lucide-react';
+import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,15 +30,25 @@ export default function DashboardPage() {
   const analytics = useMemo(() => {
     if (!data) return null;
 
-    // Simular dados dos últimos 7 dias (em produção viriam da API)
+    // Agrupar activities reais dos últimos 7 dias por data e tipo
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (6 - i));
+      date.setHours(0, 0, 0, 0);
+      const nextDay = new Date(date);
+      nextDay.setDate(date.getDate() + 1);
+
+      const dayActivities = (activities as any[]).filter((a) => {
+        if (!a.createdAt) return false;
+        const d = new Date(a.createdAt);
+        return d >= date && d < nextDay;
+      });
+
       return {
         day: format(date, 'dd/MM', { locale: ptBR }),
-        viagens: Math.floor(Math.random() * 20) + 5,
-        usuarios: Math.floor(Math.random() * 15) + 3,
-        bookings: Math.floor(Math.random() * 30) + 10,
+        viagens: dayActivities.filter((a) => a.type === 'trip').length,
+        usuarios: dayActivities.filter((a) => a.type === 'user').length,
+        bookings: dayActivities.filter((a) => a.type === 'booking').length,
       };
     });
 

@@ -7,6 +7,23 @@ interface SosMapProps {
   alerts: SosAlert[];
 }
 
+function parseAlertCoords(alert: SosAlert): { latitude: number; longitude: number } | null {
+  if (alert.latitude && alert.longitude) {
+    return { latitude: alert.latitude, longitude: alert.longitude };
+  }
+  if (alert.location) {
+    try {
+      const parsed = JSON.parse(alert.location);
+      if (parsed.latitude && parsed.longitude) {
+        return { latitude: parsed.latitude, longitude: parsed.longitude };
+      }
+    } catch {
+      // location is a plain text description, not coordinates
+    }
+  }
+  return null;
+}
+
 export function SosMap({ alerts }: SosMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -50,7 +67,8 @@ export function SosMap({ alerts }: SosMapProps) {
 
       // Adicionar marcadores para cada alerta
       alerts.forEach((alert) => {
-        if (alert.latitude && alert.longitude) {
+        const coords = parseAlertCoords(alert);
+        if (coords) {
           // Criar ícone customizado baseado no status
           const iconColor = alert.status === 'active' ? 'red' : 'gray';
 
@@ -100,7 +118,7 @@ export function SosMap({ alerts }: SosMapProps) {
             iconAnchor: [16, 16],
           });
 
-          const marker = L.marker([alert.latitude, alert.longitude], {
+          const marker = L.marker([coords.latitude, coords.longitude], {
             icon: customIcon,
           }).addTo(map);
 
@@ -146,11 +164,10 @@ export function SosMap({ alerts }: SosMapProps) {
       });
 
       // Se houver alertas, ajustar o zoom para mostrar todos
-      if (alerts.length > 0 && alerts.some(a => a.latitude && a.longitude)) {
+      const alertsWithCoords = alerts.map(a => parseAlertCoords(a)).filter(Boolean) as { latitude: number; longitude: number }[];
+      if (alertsWithCoords.length > 0) {
         const bounds = L.latLngBounds(
-          alerts
-            .filter(a => a.latitude && a.longitude)
-            .map(a => [a.latitude!, a.longitude!] as [number, number])
+          alertsWithCoords.map(c => [c.latitude, c.longitude] as [number, number])
         );
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
       }

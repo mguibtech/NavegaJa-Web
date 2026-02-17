@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { safety } from '@/lib/api';
+import { SosAlertStatus } from '@/types/safety';
 
 const menuItems = [
   {
@@ -29,7 +32,7 @@ const menuItems = [
         title: 'Alertas SOS',
         href: '/dashboard/safety/sos-alerts',
         icon: AlertTriangle,
-        badge: 2,
+        sosbadge: true,
       },
       {
         title: 'Contatos de Emergência',
@@ -77,6 +80,16 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+
+  const { data: sosAlerts = [] } = useQuery({
+    queryKey: ['sos-alerts'],
+    queryFn: safety.getActiveSosAlerts,
+    refetchInterval: 10000,
+  });
+
+  const activeSosCount = sosAlerts.filter(
+    (a: { status: string }) => a.status === SosAlertStatus.ACTIVE
+  ).length;
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card shadow-lg">
@@ -136,12 +149,12 @@ export function Sidebar() {
                           pathname === item.href ? "text-white" : "text-foreground/60 group-hover:text-secondary"
                         )} />
                         <span className="flex-1">{item.title}</span>
-                        {item.badge && typeof item.badge === 'number' && (
+                        {'sosbadge' in item && item.sosbadge && activeSosCount > 0 && (
                           <Badge
                             variant="destructive"
-                            className="h-5 min-w-[20px] px-1.5 text-xs font-bold animate-pulse"
+                            className="h-5 min-w-5 px-1.5 text-xs font-bold animate-pulse"
                           >
-                            {item.badge}
+                            {activeSosCount}
                           </Badge>
                         )}
                       </Link>
