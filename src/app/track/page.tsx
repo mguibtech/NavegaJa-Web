@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { ElementType } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Package, Search, MapPin, Calendar, User, Truck, CheckCircle2, Ship, Weight, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import { ptBR } from 'date-fns/locale';
 
 // Badge de status
 function StatusBadge({ status }: { status: ShipmentStatus }) {
-  const variants: Record<ShipmentStatus, { className: string; icon: any; label: string; description: string }> = {
+  const variants: Record<ShipmentStatus, { className: string; icon: ElementType; label: string; description: string }> = {
     [ShipmentStatus.PENDING]: {
       className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
       icon: Package,

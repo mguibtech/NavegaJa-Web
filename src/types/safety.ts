@@ -25,7 +25,7 @@ export interface SosAlert {
     phone: string;
   };
   tripId: string | null;
-  trip: any | null;
+  trip: unknown | null;
   type: SosAlertType;
   status: SosAlertStatus;
   description: string | null;

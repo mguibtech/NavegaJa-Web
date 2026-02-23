@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import { Phone, MapPin, Star, AlertCircle, Search, Filter, Plus, Pencil, Trash2, Database } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -111,8 +111,10 @@ export default function EmergencyContactsPage() {
     currentPage * itemsPerPage
   );
 
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => {
+      setCurrentPage(1);
+    });
   }, [searchTerm, typeFilter, regionFilter]);
 
   const handleOpenCreate = () => {

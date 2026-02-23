@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
 import type { SosAlert } from '@/types/safety';
 
 interface SosMapProps {
@@ -26,7 +27,7 @@ function parseAlertCoords(alert: SosAlert): { latitude: number; longitude: numbe
 
 export function SosMap({ alerts }: SosMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<LeafletMap | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
@@ -34,7 +35,7 @@ export function SosMap({ alerts }: SosMapProps) {
     // Carregar Leaflet dinamicamente apenas no cliente
     import('leaflet').then((L) => {
       // Importar CSS do Leaflet
-      // @ts-ignore
+      // @ts-expect-error - CSS module import has no type declarations
       import('leaflet/dist/leaflet.css');
 
       // Se já existe uma instância do mapa, removê-la
@@ -43,7 +44,7 @@ export function SosMap({ alerts }: SosMapProps) {
       }
 
       // Configurar ícones do Leaflet (fix para ícones padrão)
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',

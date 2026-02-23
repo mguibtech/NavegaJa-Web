@@ -23,7 +23,7 @@ interface Route {
   distanceKm?: number;
   durationMin?: number;
   createdAt: string;
-  trips?: any[];
+  trips?: { id: string }[];
 }
 
 export default function RoutesPage() {

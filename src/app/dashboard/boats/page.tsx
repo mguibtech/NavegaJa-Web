@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Trash2, Edit2, Ship, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Ship, CheckCircle, XCircle, Eye, ShieldCheck } from 'lucide-react';
+import { admin } from '@/lib/api';
 
 interface Boat {
   id: string;
@@ -81,7 +82,7 @@ export default function BoatsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => boats.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: typeof formData }) => boats.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boats'] });
       queryClient.invalidateQueries({ queryKey: ['my-boats'] });
@@ -98,6 +99,14 @@ export default function BoatsPage() {
       queryClient.invalidateQueries({ queryKey: ['my-boats'] });
       setIsDeleteModalOpen(false);
       setSelectedBoat(null);
+    },
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: (id: string) => admin.boats.verify(id, true),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boats'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
     },
   });
 
@@ -363,6 +372,18 @@ export default function BoatsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {!boat.isVerified && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => verifyMutation.mutate(boat.id)}
+                              disabled={verifyMutation.isPending}
+                              title="Verificar embarcação"
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

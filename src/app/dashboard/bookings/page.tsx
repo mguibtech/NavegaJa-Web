@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Ship, Calendar, User, Clock, CheckCircle, XCircle, AlertCircle, Phone, Filter, Search, QrCode, CreditCard, Package, Download, TrendingUp, TrendingDown, BarChart3, DollarSign, Award, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +14,19 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { bookings } from '@/lib/api';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface BookingItem {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod?: string;
+  totalPrice?: number | string;
+  createdAt: string;
+  seats?: number;
+  seatNumber?: string | number;
+  passenger?: { name: string; phone: string; email?: string };
+  trip?: { fromCity?: string; toCity?: string; departureTime?: string; boat?: { name: string }; captain?: { name: string } };
+}
 
 export default function BookingsPage() {
   const queryClient = useQueryClient();
@@ -113,8 +126,9 @@ export default function BookingsPage() {
   };
 
   // Filtrar reservas
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const filteredBookings = useMemo(() => {
-    return allBookings.filter((booking: any) => {
+    return allBookings.filter((booking: BookingItem) => {
       const matchesSearch = !searchTerm ||
         booking.passenger?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         booking.passenger?.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -144,8 +158,10 @@ export default function BookingsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => {
+      setCurrentPage(1);
+    });
   }, [searchTerm, statusFilter, paymentStatusFilter, dateFilter, startDate, endDate]);
 
   const getStatusBadge = (status: string) => {
@@ -240,16 +256,16 @@ export default function BookingsPage() {
         bookingsByDay: [],
         totalRevenue: 0,
         averageTicket: 0,
-        byStatus: { pending: 0, confirmed: 0, checked_in: 0, completed: 0, cancelled: 0 },
-        byPaymentMethod: { pix: 0, cash: 0, credit_card: 0, debit_card: 0 },
-        byPaymentStatus: { pending: 0, paid: 0, refunded: 0 },
+        byStatus: { pending: 0, confirmed: 0, checked_in: 0, completed: 0, cancelled: 0 } as Record<string, number>,
+        byPaymentMethod: { pix: 0, cash: 0, credit_card: 0, debit_card: 0 } as Record<string, number>,
+        byPaymentStatus: { pending: 0, paid: 0, refunded: 0 } as Record<string, number>,
         revenueGrowth: 0,
         bookingsGrowth: 0,
       };
     }
 
     // Receita total
-    const totalRevenue = allBookings.reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
+    const totalRevenue = allBookings.reduce((sum: number, b: BookingItem) => sum + Number(b.totalPrice || 0), 0);
     const averageTicket = totalRevenue / allBookings.length;
 
     // Últimos 7 dias de receita
@@ -263,11 +279,11 @@ export default function BookingsPage() {
     const revenueByDay = last7Days.map(day => {
       const nextDay = new Date(day);
       nextDay.setDate(day.getDate() + 1);
-      const dayBookings = allBookings.filter((b: any) => {
+      const dayBookings = allBookings.filter((b: BookingItem) => {
         const bookingDate = new Date(b.createdAt);
         return bookingDate >= day && bookingDate < nextDay;
       });
-      const revenue = dayBookings.reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
+      const revenue = dayBookings.reduce((sum: number, b: BookingItem) => sum + Number(b.totalPrice || 0), 0);
       return {
         date: day.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
         revenue,
@@ -276,22 +292,22 @@ export default function BookingsPage() {
     });
 
     // Distribuição por status
-    const byStatus = allBookings.reduce((acc: any, b: any) => {
+    const byStatus = (allBookings as BookingItem[]).reduce((acc: Record<string, number>, b: BookingItem) => {
       acc[b.status] = (acc[b.status] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     // Distribuição por método de pagamento
-    const byPaymentMethod = allBookings.reduce((acc: any, b: any) => {
-      acc[b.paymentMethod] = (acc[b.paymentMethod] || 0) + 1;
+    const byPaymentMethod = (allBookings as BookingItem[]).reduce((acc: Record<string, number>, b: BookingItem) => {
+      if (b.paymentMethod) acc[b.paymentMethod] = (acc[b.paymentMethod] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     // Distribuição por status de pagamento
-    const byPaymentStatus = allBookings.reduce((acc: any, b: any) => {
+    const byPaymentStatus = (allBookings as BookingItem[]).reduce((acc: Record<string, number>, b: BookingItem) => {
       acc[b.paymentStatus] = (acc[b.paymentStatus] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     // Crescimento (comparando últimos 7 dias vs 7 dias anteriores)
     const last7DaysRevenue = revenueByDay.reduce((sum, d) => sum + d.revenue, 0);
@@ -307,11 +323,11 @@ export default function BookingsPage() {
     const previous7DaysData = previous7Days.map(day => {
       const nextDay = new Date(day);
       nextDay.setDate(day.getDate() + 1);
-      const dayBookings = allBookings.filter((b: any) => {
+      const dayBookings = allBookings.filter((b: BookingItem) => {
         const bookingDate = new Date(b.createdAt);
         return bookingDate >= day && bookingDate < nextDay;
       });
-      const revenue = dayBookings.reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
+      const revenue = dayBookings.reduce((sum: number, b: BookingItem) => sum + Number(b.totalPrice || 0), 0);
       return { revenue, count: dayBookings.length };
     });
 
@@ -327,7 +343,8 @@ export default function BookingsPage() {
 
     // Top 5 Rankings
     // Top rotas por receita
-    const routeStats = allBookings.reduce((acc: any, b: any) => {
+    type RouteStatItem = { route: string; count: number; revenue: number };
+    const routeStats = (allBookings as BookingItem[]).reduce((acc: Record<string, RouteStatItem>, b: BookingItem) => {
       const route = `${b.trip?.fromCity || '?'} → ${b.trip?.toCity || '?'}`;
       if (!acc[route]) {
         acc[route] = { route, count: 0, revenue: 0 };
@@ -335,13 +352,14 @@ export default function BookingsPage() {
       acc[route].count += 1;
       acc[route].revenue += Number(b.totalPrice || 0);
       return acc;
-    }, {});
-    const topRoutes = Object.values(routeStats)
-      .sort((a: any, b: any) => b.revenue - a.revenue)
+    }, {} as Record<string, RouteStatItem>);
+    const topRoutes = (Object.values(routeStats) as RouteStatItem[])
+      .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
     // Top horários (por hora do dia)
-    const hourStats = allBookings.reduce((acc: any, b: any) => {
+    type HourStatItem = { hour: string; count: number };
+    const hourStats = (allBookings as BookingItem[]).reduce((acc: Record<string, HourStatItem>, b: BookingItem) => {
       if (b.trip?.departureTime) {
         const hour = new Date(b.trip.departureTime).getHours();
         const hourLabel = `${hour}:00`;
@@ -351,13 +369,14 @@ export default function BookingsPage() {
         acc[hourLabel].count += 1;
       }
       return acc;
-    }, {});
-    const topHours = Object.values(hourStats)
-      .sort((a: any, b: any) => b.count - a.count)
+    }, {} as Record<string, HourStatItem>);
+    const topHours = (Object.values(hourStats) as HourStatItem[])
+      .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
     // Dias da semana mais populares
-    const dayOfWeekStats = allBookings.reduce((acc: any, b: any) => {
+    type DayStatItem = { day: string; count: number };
+    const dayOfWeekStats = (allBookings as BookingItem[]).reduce((acc: Record<string, DayStatItem>, b: BookingItem) => {
       const dayIndex = new Date(b.createdAt).getDay();
       const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       const dayName = dayNames[dayIndex];
@@ -366,9 +385,9 @@ export default function BookingsPage() {
       }
       acc[dayName].count += 1;
       return acc;
-    }, {});
-    const topDays = Object.values(dayOfWeekStats)
-      .sort((a: any, b: any) => b.count - a.count)
+    }, {} as Record<string, DayStatItem>);
+    const topDays = (Object.values(dayOfWeekStats) as DayStatItem[])
+      .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
     return {
@@ -414,7 +433,7 @@ export default function BookingsPage() {
   // Função para exportar para Excel
   const handleExportToExcel = () => {
     // Preparar dados para exportação
-    const dataToExport = filteredBookings.map((booking: any) => ({
+    const dataToExport = filteredBookings.map((booking: BookingItem) => ({
       'ID': booking.id.substring(0, 8).toUpperCase(),
       'Passageiro': booking.passenger?.name || 'Não informado',
       'Telefone': booking.passenger?.phone || 'Não informado',
@@ -436,9 +455,9 @@ export default function BookingsPage() {
     const headers = Object.keys(dataToExport[0] || {});
     const csvContent = [
       headers.join(','),
-      ...dataToExport.map(row =>
+      ...dataToExport.map((row: Record<string, unknown>) =>
         headers.map(header => {
-          const value = row[header as keyof typeof row];
+          const value = row[header];
           // Escapar valores com vírgula ou aspas
           return typeof value === 'string' && (value.includes(',') || value.includes('"'))
             ? `"${value.replace(/"/g, '""')}"`
@@ -660,7 +679,7 @@ export default function BookingsPage() {
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                           }}
-                          formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, 'Receita']}
+                          formatter={(value: number | string | undefined) => [`R$ ${Number(value ?? 0).toFixed(2)}`, 'Receita']}
                         />
                         <Line
                           type="monotone"
@@ -699,7 +718,7 @@ export default function BookingsPage() {
                             border: '1px solid #e5e7eb',
                             borderRadius: '8px',
                           }}
-                          formatter={(value: any) => [`${value}`, 'Reservas']}
+                          formatter={(value: number | string | undefined) => [`${value ?? 0}`, 'Reservas']}
                         />
                         <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                       </BarChart>
@@ -871,7 +890,7 @@ export default function BookingsPage() {
                   </div>
                 ) : analytics.topRoutes && analytics.topRoutes.length > 0 ? (
                   <div className="space-y-3">
-                    {analytics.topRoutes.map((route: any, index: number) => (
+                    {analytics.topRoutes.map((route: { route: string; count: number; revenue: number }, index: number) => (
                       <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary/20 text-secondary font-bold">
                           {index + 1}
@@ -912,8 +931,8 @@ export default function BookingsPage() {
                   </div>
                 ) : analytics.topHours && analytics.topHours.length > 0 ? (
                   <div className="space-y-3">
-                    {analytics.topHours.map((hour: any, index: number) => {
-                      const maxCount = (analytics.topHours[0] as any)?.count || 1;
+                    {analytics.topHours.map((hour: { hour: string; count: number }, index: number) => {
+                      const maxCount = analytics.topHours[0]?.count || 1;
                       const percentage = (hour.count / maxCount) * 100;
                       return (
                         <div key={index} className="space-y-1">
@@ -960,8 +979,8 @@ export default function BookingsPage() {
                   </div>
                 ) : analytics.topDays && analytics.topDays.length > 0 ? (
                   <div className="space-y-3">
-                    {analytics.topDays.map((day: any, index: number) => {
-                      const maxCount = (analytics.topDays[0] as any)?.count || 1;
+                    {analytics.topDays.map((day: { day: string; count: number }, index: number) => {
+                      const maxCount = analytics.topDays[0]?.count || 1;
                       const percentage = (day.count / maxCount) * 100;
                       return (
                         <div key={index} className="space-y-1">
@@ -1125,7 +1144,7 @@ export default function BookingsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedBookings.map((booking: any) => {
+              {paginatedBookings.map((booking: BookingItem) => {
                 const tripRoute = `${booking.trip?.fromCity || '?'} → ${booking.trip?.toCity || '?'}`;
 
                 return (

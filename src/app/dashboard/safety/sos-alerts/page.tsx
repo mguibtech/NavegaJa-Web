@@ -15,7 +15,8 @@ import { safety } from '@/lib/api';
 import { SosAlert, SosAlertStatus } from '@/types/safety';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
+import type { ElementType } from 'react';
 import dynamic from 'next/dynamic';
 
 // Carregar mapa dinamicamente (apenas no cliente)
@@ -112,7 +113,7 @@ function ResolveAlertDialog({ alert }: { alert: SosAlert }) {
 
 // Badge de status
 function StatusBadge({ status }: { status: SosAlertStatus }) {
-  const variants: Record<SosAlertStatus, { className: string; icon: any; label: string }> = {
+  const variants: Record<SosAlertStatus, { className: string; icon: ElementType; label: string }> = {
     [SosAlertStatus.ACTIVE]: {
       className: 'bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/25',
       icon: AlertTriangle,
@@ -156,7 +157,7 @@ export default function SosAlertsPage() {
   const { data: alerts = [], isLoading, refetch } = useQuery({
     queryKey: ['sos-alerts'],
     queryFn: safety.getActiveSosAlerts,
-    refetchInterval: 10000, // Atualizar a cada 10 segundos
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
   // Filtrar alertas por busca e status
@@ -184,8 +185,10 @@ export default function SosAlertsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => {
+      setCurrentPage(1);
+    });
   }, [searchTerm, statusFilter]);
 
   const activeAlerts = alerts.filter((a: SosAlert) => a.status === SosAlertStatus.ACTIVE);

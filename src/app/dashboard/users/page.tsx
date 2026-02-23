@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
-import { Users, Search, Filter, Shield, User, Trash2, Eye, Mail, Phone, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { useState, useMemo, useEffect, startTransition, useRef } from 'react';
+import type { ElementType } from 'react';
+import { Users, Search, Filter, Shield, User, Trash2, Eye, EyeOff, Mail, Phone, Calendar, CheckCircle, XCircle, Ban, LockOpen, MapPin, Anchor, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,7 @@ import { ptBR } from 'date-fns/locale';
 
 // Badge de Role
 function RoleBadge({ role }: { role: UserRole }) {
-  const variants: Record<UserRole, { className: string; icon: any; label: string }> = {
+  const variants: Record<UserRole, { className: string; icon: ElementType; label: string }> = {
     [UserRole.ADMIN]: {
       className: 'bg-purple-100 text-purple-800 border-purple-300',
       icon: Shield,
@@ -49,7 +50,7 @@ function RoleBadge({ role }: { role: UserRole }) {
 
 // Badge de Status
 function StatusBadge({ status }: { status: UserStatus }) {
-  const variants: Record<UserStatus, { className: string; icon: any; label: string }> = {
+  const variants: Record<UserStatus, { className: string; icon: ElementType; label: string }> = {
     [UserStatus.ACTIVE]: {
       className: 'bg-green-100 text-green-800 border-green-300',
       icon: CheckCircle,
@@ -75,6 +76,126 @@ function StatusBadge({ status }: { status: UserStatus }) {
       <Icon className="h-3 w-3 mr-1" />
       {config.label}
     </Badge>
+  );
+}
+
+// Badge de isActive (bloqueado/ativo pelo admin)
+function ActiveBadge({ isActive }: { isActive: boolean }) {
+  if (isActive) return null;
+  return (
+    <Badge className="bg-red-100 text-red-800 border-red-300">
+      <Ban className="h-3 w-3 mr-1" />
+      Bloqueado
+    </Badge>
+  );
+}
+
+// Badge + botão de verificação para capitães
+function VerificationBadge({ user, onSuccess }: { user: UserType; onSuccess: () => void }) {
+  const queryClient = useQueryClient();
+  if (user.role !== UserRole.CAPTAIN) return null;
+
+  const resetMutation = useMutation({
+    mutationFn: () => admin.users.verify(user.id, false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
+      onSuccess();
+    },
+  });
+
+  if (user.isVerified === false) {
+    return (
+      <Badge className="bg-amber-100 text-amber-800 border-amber-300">
+        <ShieldAlert className="h-3 w-3 mr-1" />
+        Doc. pendente
+      </Badge>
+    );
+  }
+
+  if (user.isVerified === true) {
+    return (
+      <div className="flex items-center gap-1">
+        <Badge className="bg-green-100 text-green-800 border-green-300">
+          <ShieldCheck className="h-3 w-3 mr-1" />
+          Verificado
+        </Badge>
+        <button
+          onClick={() => resetMutation.mutate()}
+          disabled={resetMutation.isPending}
+          title="Resetar verificação (re-envio de documentos)"
+          className="text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 disabled:opacity-50"
+        >
+          {resetMutation.isPending ? '...' : 'Resetar'}
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// Modal de bloquear/desbloquear
+function ToggleStatusDialog({ user, onSuccess }: { user: UserType; onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const blocking = user.isActive;
+
+  const toggleMutation = useMutation({
+    mutationFn: () => admin.users.updateStatus(user.id, !user.isActive),
+    onSuccess: () => {
+      onSuccess();
+      setOpen(false);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" title={blocking ? 'Bloquear usuário' : 'Desbloquear usuário'}>
+          {blocking
+            ? <Ban className="h-4 w-4 text-orange-500" />
+            : <LockOpen className="h-4 w-4 text-green-600" />
+          }
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{blocking ? 'Bloquear Usuário' : 'Desbloquear Usuário'}</DialogTitle>
+          <DialogDescription>
+            {blocking
+              ? `Bloquear o acesso de ${user.name} ao aplicativo?`
+              : `Restaurar o acesso de ${user.name} ao aplicativo?`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="rounded-lg border p-4">
+            <p className="font-semibold">{user.name}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+          </div>
+          {blocking && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+              <p className="text-sm text-orange-800">
+                ⚠️ O usuário não conseguirá fazer login enquanto estiver bloqueado.
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant={blocking ? 'destructive' : 'default'}
+            onClick={() => toggleMutation.mutate()}
+            disabled={toggleMutation.isPending}
+          >
+            {toggleMutation.isPending
+              ? 'Salvando...'
+              : blocking ? 'Bloquear Usuário' : 'Desbloquear Usuário'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -318,6 +439,230 @@ function UserDetailsDialog({ user }: { user: UserType }) {
   );
 }
 
+// Municípios do Amazonas
+const CIDADES_AM = [
+  'Alvarães', 'Amaturá', 'Anamã', 'Anori', 'Apuí', 'Atalaia do Norte', 'Autazes',
+  'Barcelos', 'Barreirinha', 'Benjamin Constant', 'Beruri', 'Boa Vista do Ramos',
+  'Boca do Acre', 'Borba', 'Caapiranga', 'Canutama', 'Carauari', 'Careiro',
+  'Careiro da Várzea', 'Coari', 'Codajás', 'Eirunepé', 'Envira', 'Fonte Boa',
+  'Guajará', 'Humaitá', 'Ipixuna', 'Iranduba', 'Itacoatiara', 'Itamarati',
+  'Itapiranga', 'Japurá', 'Juruá', 'Jutaí', 'Lábrea', 'Manacapuru', 'Manaquiri',
+  'Manaus', 'Manicoré', 'Maraã', 'Maués', 'Nhamundá', 'Nova Olinda do Norte',
+  'Novo Airão', 'Novo Aripuanã', 'Parintins', 'Pauini', 'Presidente Figueiredo',
+  'Rio Preto da Eva', 'Santa Isabel do Rio Negro', 'Santo Antônio do Içá',
+  'São Gabriel da Cachoeira', 'São Paulo de Olivença', 'São Sebastião do Uatumã',
+  'Silves', 'Tabatinga', 'Tapauá', 'Tefé', 'Tonantins', 'Uarini', 'Urucará',
+  'Urucurituba',
+];
+
+// Combobox de cidades do Amazonas
+function CityCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Sincroniza o texto quando o valor externo muda (ex: reset do form)
+  useEffect(() => { setSearch(value); }, [value]);
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = useMemo(() =>
+    CIDADES_AM.filter(c => c.toLowerCase().includes(search.toLowerCase())),
+    [search]
+  );
+
+  const handleSelect = (city: string) => {
+    onChange(city);
+    setSearch(city);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative">
+        <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Input
+          id="cap-city"
+          placeholder="Digite ou selecione a cidade..."
+          value={search}
+          onChange={e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          className="pl-9"
+          autoComplete="off"
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+          {filtered.map(city => (
+            <button
+              key={city}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); handleSelect(city); }}
+              className={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                city === value ? 'bg-accent/50 font-medium' : ''
+              }`}
+            >
+              {city}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Formata telefone brasileiro: (99) 99999-9999
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+// Modal de criação de capitão
+function CreateCaptainDialog({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', city: '' });
+  const [error, setError] = useState('');
+
+  const createMutation = useMutation({
+    mutationFn: () => admin.captains.create({
+      name: form.name.trim(),
+      phone: form.phone.replace(/\D/g, ''),
+      password: form.password,
+      ...(form.email.trim() && { email: form.email.trim() }),
+      ...(form.city.trim() && { city: form.city.trim() }),
+    }),
+    onSuccess: () => {
+      onSuccess();
+      setOpen(false);
+      setForm({ name: '', email: '', phone: '', password: '', city: '' });
+      setError('');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Erro ao criar capitão. Verifique os dados e tente novamente.');
+    },
+  });
+
+  const phoneDigits = form.phone.replace(/\D/g, '');
+  const isValid = form.name.trim() && phoneDigits.length >= 10 && form.password.length >= 6;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setError(''); }}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Criar Capitão
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Anchor className="h-5 w-5 text-blue-600" />
+            Criar Novo Capitão
+          </DialogTitle>
+          <DialogDescription>
+            A conta será criada com <strong>isVerified=false</strong>. O capitão ainda precisará ter seus documentos aprovados em Verificações.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="cap-name">
+              Nome completo <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="cap-name"
+              placeholder="Carlos Navegador"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cap-email">E-mail</Label>
+            <Input
+              id="cap-email"
+              type="email"
+              placeholder="capitao@exemplo.com"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cap-phone">
+              Telefone <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="cap-phone"
+              placeholder="(92) 99200-1099"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
+              inputMode="numeric"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cap-password">
+              Senha <span className="text-destructive">*</span>
+            </Label>
+            <div className="relative">
+              <Input
+                id="cap-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Mínimo 6 caracteres"
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cap-city">Cidade</Label>
+            <CityCombobox
+              value={form.city}
+              onChange={city => setForm(f => ({ ...f, city }))}
+            />
+          </div>
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {error}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            <span className="text-destructive">*</span> Campo obrigatório
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={!isValid || createMutation.isPending}
+          >
+            {createMutation.isPending ? 'Criando...' : 'Criar Capitão'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -330,7 +675,7 @@ export default function UsersPage() {
   const { data: usersResponse, isLoading, refetch } = useQuery({
     queryKey: ['users', roleFilter, statusFilter, currentPage],
     queryFn: () => {
-      const params: any = {
+      const params: Record<string, string | number> = {
         page: currentPage,
         limit: itemsPerPage,
       };
@@ -340,7 +685,7 @@ export default function UsersPage() {
     },
   });
 
-  const usersData = usersResponse?.data || [];
+  const usersData = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
 
   // Query para estatísticas
   const { data: stats } = useQuery({
@@ -370,8 +715,8 @@ export default function UsersPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => { setCurrentPage(1); });
   }, [searchTerm, roleFilter, statusFilter]);
 
   const handleSuccess = () => {
@@ -389,20 +734,26 @@ export default function UsersPage() {
             Gerencie todos os usuários do sistema NavegaJá
           </p>
         </div>
-        <Button onClick={() => refetch()}>
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <CreateCaptainDialog onSuccess={handleSuccess} />
+          <Button variant="outline" onClick={() => refetch()}>
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Estatísticas */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.newToday || 0} novos hoje
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -432,6 +783,19 @@ export default function UsersPage() {
             <CardContent>
               <div className="text-2xl font-bold text-gray-600">
                 {stats.byRole?.passenger || 0}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                <Ban className="h-4 w-4 text-red-500" />
+                Bloqueados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {stats.blockedUsers || 0}
               </div>
             </CardContent>
           </Card>
@@ -518,43 +882,57 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedUsers.map((user: UserType) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold">{user.name}</p>
-                      <RoleBadge role={user.role} />
-                      <StatusBadge status={user.status} />
+              {paginatedUsers.map((user: UserType) => {
+                const city = user.city || user.address?.city;
+                const state = user.state || user.address?.state;
+                const location = city && state ? `${city}, ${state}` : city || state || '—';
+                return (
+                  <div
+                    key={user.id}
+                    className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    {/* Linha 1: nome + badges + ações */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <p className="font-semibold truncate">{user.name}</p>
+                        <RoleBadge role={user.role} />
+                        <StatusBadge status={user.status} />
+                        <ActiveBadge isActive={user.isActive} />
+                        <VerificationBadge user={user} onSuccess={handleSuccess} />
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <UserDetailsDialog user={user} />
+                        <ChangeRoleDialog user={user} onSuccess={handleSuccess} />
+                        {user.role !== UserRole.ADMIN && (
+                          <ToggleStatusDialog user={user} onSuccess={handleSuccess} />
+                        )}
+                        {user.role !== UserRole.ADMIN && (
+                          <DeleteUserDialog user={user} onSuccess={handleSuccess} />
+                        )}
+                      </div>
                     </div>
-                    <div className="grid gap-2 md:grid-cols-3 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="h-3.5 w-3.5" />
-                        <span>{user.email}</span>
+                    {/* Linha 2: info em grid 2×2 */}
+                    <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{user.email || '—'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-3.5 w-3.5" />
-                        <span>{user.phone}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{user.phone || '—'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>
-                          Cadastro: {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
-                        </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{location}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span>Cadastro: {format(new Date(user.createdAt), 'dd/MM/yyyy', { locale: ptBR })}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    <UserDetailsDialog user={user} />
-                    <ChangeRoleDialog user={user} onSuccess={handleSuccess} />
-                    {user.role !== UserRole.ADMIN && (
-                      <DeleteUserDialog user={user} onSuccess={handleSuccess} />
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Paginação */}
               {totalPages > 1 && (

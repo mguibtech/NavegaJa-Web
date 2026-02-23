@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
+import type { ElementType } from 'react';
 import { useRouter } from 'next/navigation';
 import { Package, Filter, Search, MapPin, Calendar, User, DollarSign, Eye, X, Truck, CheckCircle2, Weight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +21,7 @@ import { ShipmentMap } from '@/components/shipment-map';
 
 // Badge de status
 function StatusBadge({ status }: { status: ShipmentStatus }) {
-  const variants: Record<ShipmentStatus, { className: string; icon: any; label: string }> = {
+  const variants: Record<ShipmentStatus, { className: string; icon: ElementType; label: string }> = {
     [ShipmentStatus.PENDING]: {
       className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
       icon: Package,
@@ -43,7 +44,11 @@ function StatusBadge({ status }: { status: ShipmentStatus }) {
     },
   };
 
-  const config = variants[status];
+  const config = variants[status] ?? {
+    className: 'bg-gray-100 text-gray-800 border-gray-300',
+    icon: Package,
+    label: status,
+  };
   const Icon = config.icon;
 
   return (
@@ -221,14 +226,15 @@ export default function ShipmentsPage() {
   const { data: shipmentsResponse, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-shipments', statusFilter],
     queryFn: async () => {
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       try {
         return await admin.shipments.getAll(params);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const e = err as { response?: { status?: number; data?: unknown } };
         console.error('Erro ao buscar encomendas:', err);
-        console.error('Status:', err.response?.status);
-        console.error('Data:', err.response?.data);
+        console.error('Status:', e.response?.status);
+        console.error('Data:', e.response?.data);
         throw err;
       }
     },
@@ -272,8 +278,8 @@ export default function ShipmentsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => { setCurrentPage(1); });
   }, [searchTerm, statusFilter]);
 
   return (

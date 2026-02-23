@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
 
 interface ShipmentMapProps {
   latitude: number;
@@ -9,14 +10,14 @@ interface ShipmentMapProps {
 }
 
 export function ShipmentMap({ latitude, longitude, shipmentCode }: ShipmentMapProps) {
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Importar Leaflet dinamicamente (client-side only)
     if (typeof window !== 'undefined' && containerRef.current) {
       import('leaflet').then((L) => {
-        // @ts-ignore - Importar CSS do Leaflet
+        // @ts-expect-error - CSS module import has no type declarations
         import('leaflet/dist/leaflet.css');
 
         try {
@@ -30,9 +31,9 @@ export function ShipmentMap({ latitude, longitude, shipmentCode }: ShipmentMapPr
           const container = containerRef.current;
           if (!container) return;
 
-          if ((container as any)._leaflet_id) {
+          if ((container as HTMLDivElement & { _leaflet_id?: unknown })._leaflet_id) {
             // Container já tem um mapa, remover
-            delete (container as any)._leaflet_id;
+            delete (container as HTMLDivElement & { _leaflet_id?: unknown })._leaflet_id;
           }
 
           // Criar novo mapa
@@ -97,9 +98,9 @@ export function ShipmentMap({ latitude, longitude, shipmentCode }: ShipmentMapPr
           }).addTo(newMap);
 
           mapRef.current = newMap;
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Silenciar erro de "Map container is already initialized"
-          if (error.message?.includes('Map container is already initialized')) {
+          if ((error as { message?: string }).message?.includes('Map container is already initialized')) {
             console.log('Mapa já inicializado, ignorando...');
           } else {
             console.error('Erro ao inicializar mapa:', error);

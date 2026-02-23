@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ticket, Plus, Percent, Calendar, Users, TrendingUp, Filter, Search, Trash2, MapPin, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,29 @@ import { Pagination } from '@/components/ui/pagination';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { coupons } from '@/lib/api';
 
+interface CouponForm {
+  id?: string;
+  code: string;
+  description: string;
+  type: string;
+  value: number;
+  minPurchase: number;
+  maxDiscount: number | null;
+  validUntil: string;
+  usageLimit: number;
+  applicableTo: string;
+  fromCity: string | null;
+  toCity: string | null;
+  minWeight: number | null;
+  maxWeight: number | null;
+}
+
+interface CouponRecord extends CouponForm {
+  id: string;
+  isActive: boolean;
+  usageCount: number;
+}
+
 export default function CouponsPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -20,8 +43,8 @@ export default function CouponsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCoupon, setEditingCoupon] = useState<any>(null);
-  const [newCoupon, setNewCoupon] = useState({
+  const [editingCoupon, setEditingCoupon] = useState<CouponRecord | null>(null);
+  const [newCoupon, setNewCoupon] = useState<CouponForm>({
     code: '',
     description: '',
     type: 'percentage',
@@ -90,7 +113,7 @@ export default function CouponsPage() {
 
   // Mutation para atualizar cupom
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => coupons.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<CouponRecord> }) => coupons.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsEditDialogOpen(false);
@@ -101,7 +124,7 @@ export default function CouponsPage() {
   const allCoupons = couponsData;
 
   // Helper para calcular status do cupom baseado nos dados da API
-  const getCouponStatus = (coupon: any) => {
+  const getCouponStatus = (coupon: CouponRecord) => {
     const now = new Date();
     const expiresAt = new Date(coupon.validUntil);
 
@@ -112,14 +135,14 @@ export default function CouponsPage() {
 
   const stats = {
     total: allCoupons.length,
-    active: allCoupons.filter((c: any) => getCouponStatus(c) === 'active').length,
-    expired: allCoupons.filter((c: any) => getCouponStatus(c) === 'expired').length,
-    used: allCoupons.reduce((sum: number, c: any) => sum + (c.usageCount || 0), 0),
+    active: allCoupons.filter((c: CouponRecord) => getCouponStatus(c) === 'active').length,
+    expired: allCoupons.filter((c: CouponRecord) => getCouponStatus(c) === 'expired').length,
+    used: allCoupons.reduce((sum: number, c: CouponRecord) => sum + (c.usageCount || 0), 0),
   };
 
   // Filtrar cupons
   const filteredCoupons = useMemo(() => {
-    return allCoupons.filter((coupon: any) => {
+    return allCoupons.filter((coupon: CouponRecord) => {
       const matchesSearch = !searchTerm ||
         coupon.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         coupon.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -137,8 +160,10 @@ export default function CouponsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => {
+      setCurrentPage(1);
+    });
   }, [searchTerm, statusFilter]);
 
   const getStatusBadge = (status: string) => {
@@ -165,7 +190,7 @@ export default function CouponsPage() {
   };
 
   // Função para abrir modal de edição
-  const handleEditCoupon = (coupon: any) => {
+  const handleEditCoupon = (coupon: CouponRecord) => {
     setEditingCoupon({
       id: coupon.id, // Adicionar ID para poder salvar
       code: coupon.code,
@@ -181,12 +206,14 @@ export default function CouponsPage() {
       toCity: coupon.toCity || null,
       minWeight: coupon.minWeight || null,
       maxWeight: coupon.maxWeight || null,
+      isActive: coupon.isActive,
+      usageCount: coupon.usageCount,
     });
     setIsEditDialogOpen(true);
   };
 
   // Função para pausar/ativar cupom
-  const handleToggleActive = (coupon: any) => {
+  const handleToggleActive = (coupon: CouponRecord) => {
     const newStatus = !coupon.isActive;
     const action = newStatus ? 'ativado' : 'pausado';
 
@@ -356,7 +383,7 @@ export default function CouponsPage() {
                         id="fromCity"
                         placeholder="Ex: Manaus"
                         value={newCoupon.fromCity || ''}
-                        onChange={(e) => setNewCoupon({ ...newCoupon, fromCity: e.target.value || null as any })}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, fromCity: e.target.value || null })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -365,7 +392,7 @@ export default function CouponsPage() {
                         id="toCity"
                         placeholder="Ex: Parintins"
                         value={newCoupon.toCity || ''}
-                        onChange={(e) => setNewCoupon({ ...newCoupon, toCity: e.target.value || null as any })}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, toCity: e.target.value || null })}
                       />
                     </div>
                   </div>
@@ -391,7 +418,7 @@ export default function CouponsPage() {
                           min="0"
                           placeholder="Ex: 0.5"
                           value={newCoupon.minWeight || ''}
-                          onChange={(e) => setNewCoupon({ ...newCoupon, minWeight: e.target.value ? Number(e.target.value) : null as any })}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, minWeight: e.target.value ? Number(e.target.value) : null })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -403,7 +430,7 @@ export default function CouponsPage() {
                           min="0"
                           placeholder="Ex: 10"
                           value={newCoupon.maxWeight || ''}
-                          onChange={(e) => setNewCoupon({ ...newCoupon, maxWeight: e.target.value ? Number(e.target.value) : null as any })}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, maxWeight: e.target.value ? Number(e.target.value) : null })}
                         />
                       </div>
                     </div>
@@ -752,7 +779,7 @@ export default function CouponsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedCoupons.map((coupon: any) => {
+              {paginatedCoupons.map((coupon: CouponRecord) => {
               const couponStatus = getCouponStatus(coupon);
               const usagePercentage = getUsagePercentage(coupon.usageCount, coupon.usageLimit);
               const daysUntilExpire = Math.ceil(

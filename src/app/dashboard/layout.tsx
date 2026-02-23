@@ -1,5 +1,7 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { SidebarProvider } from '@/components/layout/sidebar-context';
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export default function DashboardLayout({
   children,
@@ -7,14 +9,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden pl-64">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+    <SidebarProvider>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <DashboardShell>
+          <Header />
+          <main className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
+        </DashboardShell>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

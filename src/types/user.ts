@@ -17,8 +17,12 @@ export interface User {
   phone: string;
   role: UserRole;
   status: UserStatus;
+  isActive: boolean;
+  isVerified?: boolean;
   cpf?: string;
   birthDate?: string;
+  city?: string;
+  state?: string;
   address?: {
     street?: string;
     city?: string;
@@ -39,13 +43,9 @@ export interface UserStats {
     captain: number;
     passenger: number;
   };
-  byStatus: {
-    active: number;
-    inactive: number;
-    suspended: number;
-  };
-  recentRegistrations: number;
-  activeToday: number;
+  newToday: number;
+  activeUsers: number;
+  blockedUsers: number;
 }
 
 export interface UserFilters {

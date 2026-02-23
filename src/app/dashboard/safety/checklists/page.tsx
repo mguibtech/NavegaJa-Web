@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
+import type { ElementType } from 'react';
 import { CheckCircle, XCircle, Clock, Ship, Filter, Search, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,7 @@ import { ptBR } from 'date-fns/locale';
 
 // Badge de status
 function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, { variant: any; className: string; icon: any; label: string }> = {
+  const variants: Record<string, { variant: string; className: string; icon: ElementType; label: string }> = {
     approved: {
       variant: 'default',
       className: 'bg-green-100 text-green-800 border-green-300',
@@ -64,18 +65,19 @@ export default function ChecklistsPage() {
   const { data: checklistsResponse, isLoading, refetch } = useQuery({
     queryKey: ['admin-checklists', statusFilter],
     queryFn: () => {
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       return admin.safety.getChecklists(params);
     },
     refetchInterval: 30000,
   });
 
-  const checklistsData = checklistsResponse?.data || [];
+  const checklistsData = Array.isArray(checklistsResponse) ? checklistsResponse : (checklistsResponse?.data || []);
 
   // Filtrar por busca
   const filteredChecklists = useMemo(() => {
-    return checklistsData.filter((checklist: any) => {
+    type ChecklistItem = { id: string; status: string; createdAt?: string; boat?: { name: string }; captain?: { name: string }; trip?: { route?: { origin: string; destination: string } } };
+    return (checklistsData as ChecklistItem[]).filter((checklist) => {
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
@@ -95,8 +97,8 @@ export default function ChecklistsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => { setCurrentPage(1); });
   }, [searchTerm, statusFilter]);
 
   return (
@@ -241,7 +243,7 @@ export default function ChecklistsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedChecklists.map((checklist: any) => (
+              {paginatedChecklists.map((checklist) => (
                 <div
                   key={checklist.id}
                   className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"

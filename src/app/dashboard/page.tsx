@@ -1,17 +1,26 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity, Bell } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { admin } from '@/lib/api';
+import { admin, notifications } from '@/lib/api';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 export default function DashboardPage() {
+  const [notifStatus, setNotifStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+
+  const testNotifMutation = useMutation({
+    mutationFn: notifications.test,
+    onSuccess: () => { setNotifStatus('ok'); setTimeout(() => setNotifStatus('idle'), 3000); },
+    onError: () => { setNotifStatus('error'); setTimeout(() => setNotifStatus('idle'), 3000); },
+  });
+
   // Query para estatísticas gerais
   const { data, isLoading } = useQuery({
     queryKey: ['admin-dashboard-overview'],
@@ -22,53 +31,48 @@ export default function DashboardPage() {
   // Query para atividades recentes
   const { data: activities = [], isLoading: isLoadingActivities } = useQuery({
     queryKey: ['admin-dashboard-activity'],
-    queryFn: admin.dashboard.getActivity,
+    queryFn: () => admin.dashboard.getActivity(50),
     refetchInterval: 30000,
   });
 
-  // Calcular analytics
+  // Query para dados do gráfico
+  const { data: chartData } = useQuery({
+    queryKey: ['admin-dashboard-chart'],
+    queryFn: () => admin.dashboard.getChart(7),
+    refetchInterval: 30000,
+  });
+
+  // Montar dados do gráfico a partir do endpoint dedicado
+  const chartSeries = useMemo(() => {
+    if (!chartData?.labels) return null;
+    return chartData.labels.map((label: string, i: number) => ({
+      day: label,
+      viagens: chartData.trips?.[i] ?? 0,
+      usuarios: chartData.users?.[i] ?? 0,
+      bookings: chartData.bookings?.[i] ?? 0,
+    }));
+  }, [chartData]);
+
+  // Calcular analytics (pie charts, user distribution)
   const analytics = useMemo(() => {
     if (!data) return null;
 
-    // Agrupar activities reais dos últimos 7 dias por data e tipo
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      date.setHours(0, 0, 0, 0);
-      const nextDay = new Date(date);
-      nextDay.setDate(date.getDate() + 1);
-
-      const dayActivities = (activities as any[]).filter((a) => {
-        if (!a.createdAt) return false;
-        const d = new Date(a.createdAt);
-        return d >= date && d < nextDay;
-      });
-
-      return {
-        day: format(date, 'dd/MM', { locale: ptBR }),
-        viagens: dayActivities.filter((a) => a.type === 'trip').length,
-        usuarios: dayActivities.filter((a) => a.type === 'user').length,
-        bookings: dayActivities.filter((a) => a.type === 'booking').length,
-      };
-    });
-
-    // Distribuição de status de viagens
+    // Distribuição de status de viagens — usa trips.byStatus
     const tripStatus = [
-      { name: 'Em Andamento', value: data.trips?.inProgress || 0, color: '#3b82f6' },
-      { name: 'Agendadas', value: data.trips?.scheduled || 0, color: '#10b981' },
-      { name: 'Concluídas', value: data.trips?.completed || 0, color: '#6366f1' },
-      { name: 'Canceladas', value: data.trips?.cancelled || 0, color: '#ef4444' },
+      { name: 'Em Andamento', value: data.trips?.byStatus?.in_progress || 0, color: '#3b82f6' },
+      { name: 'Agendadas',    value: data.trips?.byStatus?.scheduled    || 0, color: '#10b981' },
+      { name: 'Concluídas',   value: data.trips?.byStatus?.completed    || 0, color: '#6366f1' },
+      { name: 'Canceladas',   value: data.trips?.byStatus?.cancelled    || 0, color: '#ef4444' },
     ];
 
-    // Distribuição de usuários
+    // Distribuição de usuários — usa users.byRole
     const userDistribution = [
-      { name: 'Passageiros', value: data.users?.passengers || 0, color: '#6366f1' },
-      { name: 'Capitães', value: data.users?.captains || 0, color: '#3b82f6' },
-      { name: 'Admins', value: data.users?.admins || 0, color: '#8b5cf6' },
+      { name: 'Passageiros', value: data.users?.byRole?.passenger || 0, color: '#6366f1' },
+      { name: 'Capitães',    value: data.users?.byRole?.captain   || 0, color: '#3b82f6' },
+      { name: 'Admins',      value: data.users?.byRole?.admin     || 0, color: '#8b5cf6' },
     ];
 
     return {
-      last7Days,
       tripStatus: tripStatus.filter(s => s.value > 0),
       userDistribution: userDistribution.filter(u => u.value > 0),
     };
@@ -77,7 +81,7 @@ export default function DashboardPage() {
   const statsCards = [
     {
       title: 'Viagens Ativas',
-      value: data?.trips?.inProgress || 0,
+      value: data?.trips?.byStatus?.in_progress || 0,
       description: `${data?.trips?.total || 0} no total`,
       icon: Ship,
       color: 'text-blue-600',
@@ -167,9 +171,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <Button variant="destructive" size="sm" asChild>
-              <a href="/dashboard/safety/sos-alerts">
+              <Link href="/dashboard/safety/sos-alerts">
                 Ver Alertas Ativos
-              </a>
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -268,7 +272,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Gráficos */}
-      {analytics && (
+      {(analytics || chartSeries) && (
         <div className="grid gap-4 md:grid-cols-2">
           {/* Gráfico de Atividade */}
           <Card>
@@ -278,7 +282,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={analytics.last7Days}>
+                <LineChart data={chartSeries ?? []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="day" />
                   <YAxis />
@@ -302,7 +306,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={analytics.tripStatus}
+                    data={analytics?.tripStatus ?? []}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -311,7 +315,7 @@ export default function DashboardPage() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {analytics.tripStatus.map((entry, index) => (
+                    {(analytics?.tripStatus ?? []).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -329,13 +333,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.userDistribution}>
+                <BarChart data={analytics?.userDistribution ?? []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="value" name="Quantidade">
-                    {analytics.userDistribution.map((entry, index) => (
+                    {(analytics?.userDistribution ?? []).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
@@ -352,34 +356,49 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="grid gap-3">
               <Button variant="outline" className="justify-start" asChild>
-                <a href="/dashboard/trips">
+                <Link href="/dashboard/trips">
                   <Ship className="mr-2 h-4 w-4" />
                   Gerenciar Viagens
-                </a>
+                </Link>
               </Button>
               <Button variant="outline" className="justify-start" asChild>
-                <a href="/dashboard/bookings">
+                <Link href="/dashboard/bookings">
                   <Calendar className="mr-2 h-4 w-4" />
                   Ver Reservas
-                </a>
+                </Link>
               </Button>
               <Button variant="outline" className="justify-start" asChild>
-                <a href="/dashboard/users">
+                <Link href="/dashboard/users">
                   <Users className="mr-2 h-4 w-4" />
                   Gerenciar Usuários
-                </a>
+                </Link>
               </Button>
               <Button variant="outline" className="justify-start" asChild>
-                <a href="/dashboard/boats">
+                <Link href="/dashboard/boats">
                   <Ship className="mr-2 h-4 w-4" />
                   Cadastrar Barco
-                </a>
+                </Link>
               </Button>
               <Button variant="outline" className="justify-start" asChild>
-                <a href="/dashboard/coupons">
+                <Link href="/dashboard/coupons">
                   <Award className="mr-2 h-4 w-4" />
                   Criar Cupom
-                </a>
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => testNotifMutation.mutate()}
+                disabled={testNotifMutation.isPending}
+              >
+                <Bell className="mr-2 h-4 w-4" />
+                {testNotifMutation.isPending
+                  ? 'Enviando...'
+                  : notifStatus === 'ok'
+                  ? '✓ Notificação enviada'
+                  : notifStatus === 'error'
+                  ? '✗ Erro ao enviar'
+                  : 'Testar notificação'}
               </Button>
             </CardContent>
           </Card>
@@ -397,7 +416,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data?.topRoutes?.slice(0, 5).map((route: any, idx: number) => (
+              {data?.topRoutes?.slice(0, 5).map((route: { name: string; count: number }, idx: number) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0">
@@ -423,7 +442,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data?.topCaptains?.slice(0, 5).map((captain: any, idx: number) => (
+              {data?.topCaptains?.slice(0, 5).map((captain: { name: string; rating: number }, idx: number) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0">
@@ -452,7 +471,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data?.topPassengers?.slice(0, 5).map((passenger: any, idx: number) => (
+              {data?.topPassengers?.slice(0, 5).map((passenger: { name: string; trips: number }, idx: number) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0">
@@ -492,7 +511,7 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="space-y-3">
-              {activities.slice(0, 10).map((activity: any, index: number) => {
+              {activities.slice(0, 10).map((activity: { type: string; description: string; user?: { name: string }; timestamp?: string; createdAt?: string; status?: string }, index: number) => {
                 const getActivityIcon = () => {
                   if (activity.type === 'coupon') return Award;
                   if (activity.type === 'user') return Users;
@@ -525,9 +544,11 @@ export default function DashboardPage() {
                         <span>{activity.user?.name || 'Sistema'}</span>
                         <span>•</span>
                         <span>
-                          {activity.createdAt
-                            ? format(new Date(activity.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                            : 'Data não disponível'}
+                          {(() => {
+                            const ts = activity.timestamp ?? activity.createdAt;
+                            if (!ts) return 'Data desconhecida';
+                            return format(new Date(ts), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+                          })()}
                         </span>
                       </div>
                     </div>

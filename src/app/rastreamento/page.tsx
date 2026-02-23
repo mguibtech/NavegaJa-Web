@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { ElementType } from 'react';
 import { Search, Package, MapPin, Calendar, Phone, User, Clock, Ship, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -69,8 +70,9 @@ export default function RastreamentoPage() {
 
       const data = await response.json();
       setTracking(data);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao rastrear encomenda');
+    } catch (err: unknown) {
+      const fetchErr = err as { message?: string };
+      setError(fetchErr.message || 'Erro ao rastrear encomenda');
       setTracking(null);
     } finally {
       setLoading(false);
@@ -78,7 +80,7 @@ export default function RastreamentoPage() {
   };
 
   const getStatusConfig = (status: string) => {
-    const configs: Record<string, { label: string; color: string; icon: any; bgColor: string }> = {
+    const configs: Record<string, { label: string; color: string; icon: ElementType; bgColor: string }> = {
       pending: { label: 'Aguardando Coleta', color: 'text-yellow-700', icon: Clock, bgColor: 'bg-yellow-100 border-yellow-300' },
       paid: { label: 'Pago', color: 'text-green-700', icon: CheckCircle, bgColor: 'bg-green-100 border-green-300' },
       collected: { label: 'Coletado', color: 'text-blue-700', icon: Package, bgColor: 'bg-blue-100 border-blue-300' },

@@ -7,7 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { admin } from '@/lib/api';
-import { ShipmentStatus } from '@/types/shipment';
+import { Shipment, ShipmentStatus } from '@/types/shipment';
+
+interface ShipmentDetail extends Shipment {
+  sender?: { name: string; phone: string };
+  totalPrice?: number;
+  _weight?: number;
+  trip?: Shipment['trip'] & {
+    route?: { originName: string; destinationName: string };
+    captain?: { name: string };
+    departureAt?: string;
+  };
+}
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ShipmentMap } from '@/components/shipment-map';
@@ -48,7 +59,7 @@ export default function ShipmentDetailsPage() {
       // Buscar todas e filtrar por ID (backend não tem endpoint por ID)
       const response = await admin.shipments.getAll({ limit: 100 });
       const list = Array.isArray(response) ? response : (response?.data || []);
-      return list.find((s: any) => s.id === shipmentId) || null;
+      return (list as ShipmentDetail[]).find((s) => s.id === shipmentId) || null;
     },
   });
 
@@ -108,15 +119,15 @@ export default function ShipmentDetailsPage() {
           <CardContent className="space-y-2 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Nome</p>
-              <p className="font-medium">{(shipment as any).sender?.name || (shipment as any).senderName || 'N/A'}</p>
+              <p className="font-medium">{(shipment as ShipmentDetail).sender?.name || (shipment as ShipmentDetail).senderName || 'N/A'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Telefone</p>
-              <p className="font-medium">{(shipment as any).sender?.phone || (shipment as any).senderPhone || 'N/A'}</p>
+              <p className="font-medium">{(shipment as ShipmentDetail).sender?.phone || (shipment as ShipmentDetail).senderPhone || 'N/A'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Origem</p>
-              <p className="font-medium">{(shipment as any).trip?.route?.originName || (shipment as any).origin || 'N/A'}</p>
+              <p className="font-medium">{(shipment as ShipmentDetail).trip?.route?.originName || (shipment as ShipmentDetail).origin || 'N/A'}</p>
             </div>
           </CardContent>
         </Card>
@@ -140,7 +151,7 @@ export default function ShipmentDetailsPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Destino</p>
-              <p className="font-medium">{(shipment as any).trip?.route?.destinationName || (shipment as any).destination || 'N/A'}</p>
+              <p className="font-medium">{(shipment as ShipmentDetail).trip?.route?.destinationName || (shipment as ShipmentDetail).destination || 'N/A'}</p>
             </div>
             {shipment.recipientAddress && (
               <div>
@@ -168,21 +179,21 @@ export default function ShipmentDetailsPage() {
               <p className="text-xs text-muted-foreground">Peso</p>
               <p className="font-medium flex items-center gap-1">
                 <Weight className="h-3 w-3" />
-                {(shipment as any)._weight || shipment.weight || '–'} kg
+                {(shipment as ShipmentDetail)._weight || shipment.weight || '–'} kg
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Valor</p>
               <p className="font-medium text-green-600 flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
-                R$ {Number((shipment as any).totalPrice || shipment.price || 0).toFixed(2)}
+                R$ {Number((shipment as ShipmentDetail).totalPrice || shipment.price || 0).toFixed(2)}
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Viagem */}
-        {(shipment as any).trip ? (
+        {(shipment as ShipmentDetail).trip ? (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-orange-600">
@@ -193,17 +204,17 @@ export default function ShipmentDetailsPage() {
             <CardContent className="space-y-2 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Embarcação</p>
-                <p className="font-medium">{(shipment as any).trip.boat?.name || 'N/A'}</p>
+                <p className="font-medium">{(shipment as ShipmentDetail).trip!.boat?.name || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Capitão</p>
-                <p className="font-medium">{(shipment as any).trip.captain?.name || 'N/A'}</p>
+                <p className="font-medium">{(shipment as ShipmentDetail).trip!.captain?.name || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Partida</p>
                 <p className="font-medium">
-                  {((shipment as any).trip.departureAt || (shipment as any).trip.scheduledDeparture)
-                    ? format(new Date((shipment as any).trip.departureAt || (shipment as any).trip.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                  {((shipment as ShipmentDetail).trip!.departureAt || (shipment as ShipmentDetail).trip!.scheduledDeparture)
+                    ? format(new Date((shipment as ShipmentDetail).trip!.departureAt || (shipment as ShipmentDetail).trip!.scheduledDeparture), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
                     : 'N/A'}
                 </p>
               </div>
@@ -219,7 +230,7 @@ export default function ShipmentDetailsPage() {
       </div>
 
       {/* Mapa em largura total */}
-      {(shipment as any).trip?.currentLat && (shipment as any).trip?.currentLng ? (
+      {(shipment as ShipmentDetail).trip?.currentLat && (shipment as ShipmentDetail).trip?.currentLng ? (
         <Card>
           <CardHeader className="bg-linear-to-r from-green-600 to-blue-600 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -235,22 +246,22 @@ export default function ShipmentDetailsPage() {
           </CardHeader>
           <CardContent className="p-0 overflow-hidden">
             <ShipmentMap
-              latitude={Number((shipment as any).trip.currentLat)}
-              longitude={Number((shipment as any).trip.currentLng)}
+              latitude={Number((shipment as ShipmentDetail).trip!.currentLat)}
+              longitude={Number((shipment as ShipmentDetail).trip!.currentLng)}
               shipmentCode={shipment.trackingCode}
             />
             <div className="p-4 bg-blue-50 border-t border-blue-200 flex items-center justify-between">
               <div className="text-sm">
                 <p className="font-medium text-blue-900">Coordenadas GPS</p>
                 <p className="text-blue-700 font-mono text-xs mt-0.5">
-                  {Number((shipment as any).trip.currentLat).toFixed(6)}, {Number((shipment as any).trip.currentLng).toFixed(6)}
+                  {Number((shipment as ShipmentDetail).trip!.currentLat).toFixed(6)}, {Number((shipment as ShipmentDetail).trip!.currentLng).toFixed(6)}
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const url = `https://www.google.com/maps?q=${(shipment as any).trip.currentLat},${(shipment as any).trip.currentLng}`;
+                  const url = `https://www.google.com/maps?q=${(shipment as ShipmentDetail).trip!.currentLat},${(shipment as ShipmentDetail).trip!.currentLng}`;
                   window.open(url, '_blank');
                 }}
               >

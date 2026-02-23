@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import { Ship, Filter, Plus, MapPin, Calendar, Users, DollarSign, Eye, Trash2, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { ptBR } from 'date-fns/locale';
 
 // Badge de status
 function StatusBadge({ status }: { status: TripStatus }) {
-  const variants: Record<TripStatus, { variant: any; label: string }> = {
+  const variants: Record<TripStatus, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
     [TripStatus.SCHEDULED]: { variant: 'default', label: 'Agendada' },
     [TripStatus.IN_PROGRESS]: { variant: 'default', label: 'Em Andamento' },
     [TripStatus.COMPLETED]: { variant: 'secondary', label: 'Concluída' },
@@ -167,7 +167,7 @@ export default function TripsPage() {
   const { data: tripsResponse, isLoading, refetch } = useQuery({
     queryKey: ['admin-trips', statusFilter, typeFilter],
     queryFn: () => {
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (typeFilter !== 'all') params.type = typeFilter;
       return admin.trips.getAll(params);
@@ -175,7 +175,7 @@ export default function TripsPage() {
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
-  const tripsData = tripsResponse?.data || [];
+  const tripsData = Array.isArray(tripsResponse) ? tripsResponse : (tripsResponse?.data || []);
 
   // Mutation para cancelar viagem (usando endpoint admin)
   const cancelMutation = useMutation({
@@ -207,8 +207,8 @@ export default function TripsPage() {
   );
 
   // Reset para página 1 quando filtros mudam
-  useMemo(() => {
-    setCurrentPage(1);
+  useEffect(() => {
+    startTransition(() => { setCurrentPage(1); });
   }, [searchTerm, statusFilter, typeFilter]);
 
   return (

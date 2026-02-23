@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Ship } from 'lucide-react';
+import { Ship, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [statusCode, setStatusCode] = useState<number | undefined>();
   const [isOnline, setIsOnline] = useState(true);
   const [canSubmit, setCanSubmit] = useState(true); // Controle para evitar submits rápidos
+  const [showPassword, setShowPassword] = useState(false);
+  const [stayLoggedIn, setStayLoggedIn] = useState(false);
 
   // Atualizar status online/offline após montagem (client-side only)
   useEffect(() => {
@@ -64,45 +66,50 @@ export default function LoginPage() {
 
       console.log('✅ Login bem-sucedido!', data);
 
-      // Salvar token e usuário no localStorage
-      localStorage.setItem('token', data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Salvar no storage certo conforme a opção "Permanecer conectado"
+      const storage = stayLoggedIn ? localStorage : sessionStorage;
+      storage.setItem('token', data.accessToken);
+      storage.setItem('user', JSON.stringify(data.user));
+      if (data.refreshToken) storage.setItem('refreshToken', data.refreshToken);
 
-      // Salvar token no cookie também (para o middleware)
-      document.cookie = `token=${data.accessToken}; path=/; max-age=604800`; // 7 dias
+      // Cookie para o middleware (persistente ou de sessão)
+      document.cookie = stayLoggedIn
+        ? `token=${data.accessToken}; path=/; max-age=604800`  // 7 dias
+        : `token=${data.accessToken}; path=/`;                  // sessão
 
-      console.log('🍪 Token salvo no cookie e localStorage');
+      console.log(`🍪 Token salvo (${stayLoggedIn ? 'localStorage' : 'sessionStorage'})`);
 
       // Forçar reload da página para o middleware detectar o cookie
       window.location.href = '/dashboard';
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string }; status?: number }; message?: string; code?: string };
       console.error('❌ Erro no login:', err);
-      console.error('Response:', err.response);
-      console.error('Data:', err.response?.data);
-      console.error('Status:', err.response?.status);
+      console.error('Response:', apiErr.response);
+      console.error('Data:', apiErr.response?.data);
+      console.error('Status:', apiErr.response?.status);
 
       let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
 
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.message) {
-        errorMessage = err.message;
+      if (apiErr.response?.data?.message) {
+        errorMessage = apiErr.response.data.message;
+      } else if (apiErr.message) {
+        errorMessage = apiErr.message;
       } else if (!navigator.onLine) {
         errorMessage = 'Sem conexão com a internet.';
-      } else if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+      } else if (apiErr.code === 'ECONNREFUSED' || apiErr.message?.includes('Network Error')) {
         errorMessage = 'Servidor não está respondendo. Verifique se o backend está rodando.';
       }
 
       const debugText = `
-Status: ${err.response?.status || 'N/A'}
+Status: ${apiErr.response?.status || 'N/A'}
 URL: ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login-web
-Message: ${err.message}
-Response: ${JSON.stringify(err.response?.data, null, 2)}
+Message: ${apiErr.message}
+Response: ${JSON.stringify(apiErr.response?.data, null, 2)}
       `;
 
       setError(errorMessage);
       setDebugInfo(debugText);
-      setStatusCode(err.response?.status);
+      setStatusCode(apiErr.response?.status);
 
       // Bloquear reenvio por 5 segundos após erro para garantir leitura
       setTimeout(() => {
@@ -114,7 +121,7 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary via-primary-mid to-primary-light p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-primary via-primary-mid to-primary-light p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg">
@@ -141,16 +148,38 @@ Response: ${JSON.stringify(err.response?.data, null, 2)}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
+            {/* Permanecer conectado */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={stayLoggedIn}
+                onChange={e => setStayLoggedIn(e.target.checked)}
+                className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+              />
+              <span className="text-sm text-muted-foreground">Permanecer conectado</span>
+            </label>
+
             {error && (
               <ErrorAlert
                 error={error}
