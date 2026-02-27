@@ -572,6 +572,54 @@ export const bookings = {
   },
 };
 
+// Weather API
+export const weather = {
+  getRegions: async () => {
+    const { data } = await api.get('/weather/regions');
+    return data;
+  },
+  getByRegion: async (region: string) => {
+    const { data } = await api.get(`/weather/region/${region}`);
+    return data;
+  },
+  getNavigationSafety: async (lat: number, lng: number) => {
+    const { data } = await api.get('/weather/navigation-safety', { params: { lat, lng } });
+    return data;
+  },
+  getCurrent: async (lat: number, lng: number, region?: string) => {
+    const { data } = await api.get('/weather/current', { params: { lat, lng, region } });
+    return data;
+  },
+};
+
+// Promotions API
+export const promotions = {
+  getAll: async () => {
+    const { data } = await api.get('/promotions');
+    return data;
+  },
+  getActive: async () => {
+    const { data } = await api.get('/promotions/active');
+    return data;
+  },
+  create: async (promotionData: Record<string, unknown>) => {
+    const { data } = await api.post('/promotions', promotionData);
+    return data;
+  },
+  update: async (id: string, promotionData: Record<string, unknown>) => {
+    const { data } = await api.put(`/promotions/${id}`, promotionData);
+    return data;
+  },
+  toggle: async (id: string) => {
+    const { data } = await api.put(`/promotions/${id}/toggle`);
+    return data;
+  },
+  delete: async (id: string) => {
+    const { data } = await api.delete(`/promotions/${id}`);
+    return data;
+  },
+};
+
 // Notifications API
 export const notifications = {
   test: async () => {

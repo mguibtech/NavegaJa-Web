@@ -15,6 +15,7 @@ import {
   Star,
   Bell,
   ShieldCheck,
+  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -83,6 +84,11 @@ const menuItems = [
         title: 'Cupons',
         href: '/dashboard/coupons',
         icon: Ticket,
+      },
+      {
+        title: 'Promoções',
+        href: '/dashboard/promotions',
+        icon: Megaphone,
       },
       {
         title: 'Avaliações',

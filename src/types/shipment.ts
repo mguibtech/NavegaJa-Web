@@ -1,6 +1,10 @@
 export enum ShipmentStatus {
   PENDING = 'pending',
+  PAID = 'paid',
+  COLLECTED = 'collected',
   IN_TRANSIT = 'in_transit',
+  ARRIVED = 'arrived',
+  OUT_FOR_DELIVERY = 'out_for_delivery',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
 }
@@ -19,6 +23,9 @@ export interface Shipment {
   description: string;
   price: number;
   status: ShipmentStatus;
+  // Novos campos
+  paidBy?: string;
+  photos?: string[];
   tripId?: string;
   trip?: {
     id: string;

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useMemo, useEffect, startTransition } from 'react';
 import type { ElementType } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, Filter, Search, MapPin, Calendar, User, DollarSign, Eye, X, Truck, CheckCircle2, Weight } from 'lucide-react';
+import { Package, Filter, Search, MapPin, Calendar, User, DollarSign, Eye, X, Truck, CheckCircle2, Weight, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +27,30 @@ function StatusBadge({ status }: { status: ShipmentStatus }) {
       icon: Package,
       label: 'Pendente',
     },
+    [ShipmentStatus.PAID]: {
+      className: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      icon: CreditCard,
+      label: 'Pago',
+    },
+    [ShipmentStatus.COLLECTED]: {
+      className: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+      icon: Package,
+      label: 'Coletado',
+    },
     [ShipmentStatus.IN_TRANSIT]: {
       className: 'bg-blue-100 text-blue-800 border-blue-300',
       icon: Truck,
       label: 'Em Trânsito',
+    },
+    [ShipmentStatus.ARRIVED]: {
+      className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      icon: MapPin,
+      label: 'Chegou ao Destino',
+    },
+    [ShipmentStatus.OUT_FOR_DELIVERY]: {
+      className: 'bg-purple-100 text-purple-800 border-purple-300',
+      icon: Truck,
+      label: 'Saiu p/ Entrega',
     },
     [ShipmentStatus.DELIVERED]: {
       className: 'bg-green-100 text-green-800 border-green-300',
@@ -127,8 +147,34 @@ function ShipmentDetailsDialog({ shipment }: { shipment: Shipment }) {
                 <p className="font-medium">Preço:</p>
                 <p>R$ {Number(shipment.price || 0).toFixed(2)}</p>
               </div>
+              {shipment.paidBy && (
+                <div>
+                  <p className="font-medium flex items-center gap-1">
+                    <CreditCard className="h-3.5 w-3.5" /> Pago por:
+                  </p>
+                  <p className="capitalize">{shipment.paidBy}</p>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Fotos da Encomenda */}
+          {shipment.photos && shipment.photos.length > 0 && (
+            <div className="rounded-lg border p-4">
+              <div className="mb-3 text-sm font-semibold">
+                Fotos da Encomenda ({shipment.photos.length})
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {shipment.photos.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                    className="block rounded-lg overflow-hidden border aspect-square bg-muted hover:opacity-90 transition-opacity">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Viagem */}
           {shipment.trip && (
@@ -370,7 +416,11 @@ export default function ShipmentsPage() {
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
                   <SelectItem value={ShipmentStatus.PENDING}>Pendente</SelectItem>
+                  <SelectItem value={ShipmentStatus.PAID}>Pago</SelectItem>
+                  <SelectItem value={ShipmentStatus.COLLECTED}>Coletado</SelectItem>
                   <SelectItem value={ShipmentStatus.IN_TRANSIT}>Em Trânsito</SelectItem>
+                  <SelectItem value={ShipmentStatus.ARRIVED}>Chegou ao Destino</SelectItem>
+                  <SelectItem value={ShipmentStatus.OUT_FOR_DELIVERY}>Saiu p/ Entrega</SelectItem>
                   <SelectItem value={ShipmentStatus.DELIVERED}>Entregue</SelectItem>
                   <SelectItem value={ShipmentStatus.CANCELLED}>Cancelada</SelectItem>
                 </SelectContent>
@@ -433,7 +483,7 @@ export default function ShipmentsPage() {
                         <p className="font-medium">{shipment.recipientName}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                       <div className="flex items-center gap-1">
                         <Weight className="h-3.5 w-3.5" />
                         <span>{shipment.weight} kg</span>
@@ -442,6 +492,17 @@ export default function ShipmentsPage() {
                         <DollarSign className="h-3.5 w-3.5" />
                         <span>R$ {Number(shipment.price || 0).toFixed(2)}</span>
                       </div>
+                      {shipment.paidBy && (
+                        <div className="flex items-center gap-1">
+                          <CreditCard className="h-3.5 w-3.5" />
+                          <span className="capitalize">{shipment.paidBy}</span>
+                        </div>
+                      )}
+                      {shipment.photos && shipment.photos.length > 0 && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <span>{shipment.photos.length} foto{shipment.photos.length > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 ml-4">

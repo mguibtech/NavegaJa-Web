@@ -58,6 +58,10 @@ interface PendingCaptain {
   state?: string;
   licensePhotoUrl?: string;
   certificatePhotoUrl?: string;
+  // Novos campos KYC
+  kycStatus?: string;
+  kycDocumentUrl?: string;
+  kycSelfieUrl?: string;
 }
 
 interface PendingBoat {
@@ -569,20 +573,48 @@ export default function VerificationsPage() {
 
       {/* ── Overlay capitão ── */}
       {selectedCaptain && (() => {
-        const photos = [
+        const navDocs = [
           ...(selectedCaptain.licensePhotoUrl ? [selectedCaptain.licensePhotoUrl] : []),
           ...(selectedCaptain.certificatePhotoUrl ? [selectedCaptain.certificatePhotoUrl] : []),
         ];
-        const labels = [
+        const navLabels = [
           ...(selectedCaptain.licensePhotoUrl ? ['Habilitação Náutica'] : []),
-          ...(selectedCaptain.certificatePhotoUrl ? ['Certificado'] : []),
+          ...(selectedCaptain.certificatePhotoUrl ? ['Certificado Náutico'] : []),
         ];
+        const kycDocs = [
+          ...(selectedCaptain.kycDocumentUrl ? [selectedCaptain.kycDocumentUrl] : []),
+          ...(selectedCaptain.kycSelfieUrl ? [selectedCaptain.kycSelfieUrl] : []),
+        ];
+        const kycLabels = [
+          ...(selectedCaptain.kycDocumentUrl ? ['Documento de Identidade (KYC)'] : []),
+          ...(selectedCaptain.kycSelfieUrl ? ['Selfie (KYC)'] : []),
+        ];
+        const allPhotos = [...navDocs, ...kycDocs];
+        const allLabels = [...navLabels, ...kycLabels];
+
+        const kycStatusBadge = selectedCaptain.kycStatus
+          ? {
+              verified:  { label: 'KYC Verificado',  cls: 'bg-secondary/10 text-secondary' },
+              pending:   { label: 'KYC Pendente',    cls: 'bg-warning/10 text-warning' },
+              rejected:  { label: 'KYC Rejeitado',   cls: 'bg-destructive/10 text-destructive' },
+            }[selectedCaptain.kycStatus] ?? { label: `KYC: ${selectedCaptain.kycStatus}`, cls: 'bg-muted text-muted-foreground' }
+          : null;
+
         return (
           <DetailOverlay
             avatarColor="#f59e0b"
             title={selectedCaptain.name}
             subtitle="Capitão pendente de verificação de documentos"
-            badge={<Badge variant="outline" className="text-amber-700 border-amber-400">Pendente</Badge>}
+            badge={
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-amber-700 border-amber-400">Pendente</Badge>
+                {kycStatusBadge && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${kycStatusBadge.cls}`}>
+                    {kycStatusBadge.label}
+                  </span>
+                )}
+              </div>
+            }
             info={[
               { icon: <Mail className="h-3.5 w-3.5" />, value: selectedCaptain.email },
               { icon: <Phone className="h-3.5 w-3.5" />, value: selectedCaptain.phone },
@@ -591,7 +623,10 @@ export default function VerificationsPage() {
                 ? [{ icon: <MapPin className="h-3.5 w-3.5" />, value: [selectedCaptain.city, selectedCaptain.state].filter(Boolean).join(', ') }]
                 : []),
             ]}
-            docSections={[{ heading: 'Documentos', photos, labels, offset: 0, allPhotos: photos, allLabels: labels }]}
+            docSections={[
+              { heading: 'Documentos Náuticos', photos: navDocs, labels: navLabels, offset: 0, allPhotos, allLabels },
+              { heading: 'KYC — Verificação de Identidade', photos: kycDocs, labels: kycLabels, offset: navDocs.length, allPhotos, allLabels },
+            ]}
             onClose={() => setSelectedCaptain(null)}
             onApprove={() => captainVerifyMutation.mutate({ id: selectedCaptain.id, verified: true })}
             onReject={() => { setRejectTarget({ type: 'captain', id: selectedCaptain.id, name: selectedCaptain.name }); setRejectReason(''); }}

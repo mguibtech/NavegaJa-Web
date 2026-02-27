@@ -2,15 +2,173 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity, Bell } from 'lucide-react';
+import { Ship, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Clock, DollarSign, Calendar, Star, Award, Activity, Bell, Waves, Wind, Thermometer, Eye, Droplets, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { admin, notifications } from '@/lib/api';
+import { admin, notifications, weather } from '@/lib/api';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+
+// ─── Flood Hub / Navigation Safety Widget ────────────────────────────────────
+
+const MAIN_REGIONS = [
+  { id: 'manaus',    label: 'Manaus',    lat: -3.119,  lng: -60.0217 },
+  { id: 'parintins', label: 'Parintins', lat: -2.627,  lng: -56.736  },
+  { id: 'itacoatiara', label: 'Itacoatiara', lat: -3.143, lng: -58.445 },
+];
+
+function safetyColor(score: number) {
+  if (score >= 75) return { bg: 'bg-secondary/15', text: 'text-secondary', label: 'Seguro' };
+  if (score >= 50) return { bg: 'bg-warning/15',   text: 'text-warning',   label: 'Atenção' };
+  return              { bg: 'bg-destructive/15',   text: 'text-destructive', label: 'Perigoso' };
+}
+
+function FloodHubWidget() {
+  const q0 = useQuery({
+    queryKey: ['weather-nav', MAIN_REGIONS[0].id],
+    queryFn: () => weather.getNavigationSafety(MAIN_REGIONS[0].lat, MAIN_REGIONS[0].lng),
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 25 * 60 * 1000,
+    retry: 1,
+  });
+  const q1 = useQuery({
+    queryKey: ['weather-nav', MAIN_REGIONS[1].id],
+    queryFn: () => weather.getNavigationSafety(MAIN_REGIONS[1].lat, MAIN_REGIONS[1].lng),
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 25 * 60 * 1000,
+    retry: 1,
+  });
+  const q2 = useQuery({
+    queryKey: ['weather-nav', MAIN_REGIONS[2].id],
+    queryFn: () => weather.getNavigationSafety(MAIN_REGIONS[2].lat, MAIN_REGIONS[2].lng),
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 25 * 60 * 1000,
+    retry: 1,
+  });
+
+  const queries = [
+    { ...MAIN_REGIONS[0], q: q0 },
+    { ...MAIN_REGIONS[1], q: q1 },
+    { ...MAIN_REGIONS[2], q: q2 },
+  ];
+
+  const isLoading = queries.some((r) => r.q.isLoading);
+  const hasData   = queries.some((r) => r.q.data);
+
+  if (isLoading && !hasData) {
+    return (
+      <Card>
+        <CardHeader className="border-b bg-muted/30 pb-3">
+          <div className="flex items-center gap-2">
+            <Waves className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Segurança de Navegação — Flood Hub</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-3">
+            {MAIN_REGIONS.map((r) => (
+              <div key={r.id} className="h-24 rounded-lg bg-muted animate-pulse" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="border-b bg-muted/30 pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Waves className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base">Segurança de Navegação — Flood Hub</CardTitle>
+          </div>
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Atualiza a cada 30 min
+          </Badge>
+        </div>
+        <CardDescription className="mt-1">
+          Condições climáticas nas principais regiões de operação
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {queries.map(({ id, label, q }) => {
+            const d = q.data;
+            if (!d) return (
+              <div key={id} className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                <ShieldAlert className="h-6 w-6 mx-auto mb-1 text-muted-foreground/50" />
+                {label}
+                <br />
+                <span className="text-xs">Dados indisponíveis</span>
+              </div>
+            );
+
+            const score = Math.round(d.safetyScore ?? d.score ?? 0);
+            const colors = safetyColor(score);
+            const w = d.weather ?? d;
+
+            return (
+              <div key={id} className={`rounded-lg border p-4 ${colors.bg}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-sm text-foreground">{label}</span>
+                  <Badge className={`${colors.bg} ${colors.text} border-0 font-bold`}>
+                    {score}/100
+                  </Badge>
+                </div>
+
+                <p className={`text-xs font-semibold mb-3 ${colors.text}`}>{colors.label}</p>
+
+                <div className="grid grid-cols-2 gap-1.5 text-xs text-foreground/70">
+                  {w.temperature !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <Thermometer className="h-3 w-3" />
+                      {Math.round(w.temperature)}°C
+                    </div>
+                  )}
+                  {w.windSpeed !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <Wind className="h-3 w-3" />
+                      {Math.round(w.windSpeed)} km/h
+                    </div>
+                  )}
+                  {w.humidity !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <Droplets className="h-3 w-3" />
+                      {w.humidity}%
+                    </div>
+                  )}
+                  {w.visibility !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {w.visibility} km
+                    </div>
+                  )}
+                </div>
+
+                {d.alerts && d.alerts.length > 0 && (
+                  <div className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {d.alerts[0]}
+                  </div>
+                )}
+
+                {w.description && (
+                  <p className="mt-2 text-xs text-foreground/60 capitalize">{w.description}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const [notifStatus, setNotifStatus] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -178,6 +336,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Flood Hub — Segurança de Navegação */}
+      <FloodHubWidget />
 
       {/* Cards de Estatísticas Principais */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
