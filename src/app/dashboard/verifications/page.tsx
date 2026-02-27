@@ -400,11 +400,11 @@ export default function VerificationsPage() {
     mutationFn: ({ id, verified, rejectionReason }: { id: string; verified: boolean; rejectionReason?: string }) =>
       admin.users.verify(id, verified, rejectionReason),
     onSuccess: (_, { id }) => {
-      // Remove imediatamente do cache — o backend pode ainda retornar o item na lista
+      // Remove do cache imediatamente e NÃO refaz o fetch — o 304 do backend
+      // devolveria a lista antiga (HTTP cache) e o capitão reapareceria.
       queryClient.setQueryData<PendingData>(['pending-verifications'], old =>
         old ? { ...old, pendingCaptains: old.pendingCaptains.filter(c => c.id !== id) } : old
       );
-      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
       setRejectTarget(null);
       setRejectReason('');
       setSelectedCaptain(null);
@@ -415,12 +415,9 @@ export default function VerificationsPage() {
     mutationFn: ({ id, approved, reason }: { id: string; approved: boolean; reason?: string }) =>
       admin.boats.verify(id, approved, reason),
     onSuccess: (_, { id }) => {
-      // Remove imediatamente do cache
       queryClient.setQueryData<PendingData>(['pending-verifications'], old =>
         old ? { ...old, pendingBoats: old.pendingBoats.filter(b => b.id !== id) } : old
       );
-      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
-      queryClient.invalidateQueries({ queryKey: ['boats'] });
       setRejectTarget(null);
       setRejectReason('');
       setSelectedBoat(null);
