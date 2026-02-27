@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, LogOut, User, Menu, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Bell, LogOut, User, Menu, AlertTriangle, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from './sidebar-context';
 import { clearAuthStorage, safety, admin } from '@/lib/api';
@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTheme } from 'next-themes';
 import { SosAlertStatus } from '@/types/safety';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -31,6 +32,7 @@ interface Notification {
 
 export function Header() {
   const { toggle } = useSidebar();
+  const { resolvedTheme, setTheme } = useTheme();
   const [user, setUser] = useState<Record<string, string>>({});
   // mounted garante que queries só rodam no cliente — evita hydration mismatch
   // com Radix (useQuery usa useSyncExternalStore, que tem impl. diferente no SSR)
@@ -119,6 +121,21 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Tema claro/escuro */}
+          {mounted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              className="hover:bg-primary/5"
+              title={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            >
+              {resolvedTheme === 'dark'
+                ? <Sun className="h-5 w-5 text-accent" />
+                : <Moon className="h-5 w-5 text-foreground" />}
+            </Button>
+          )}
+
           {/* Notificações */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

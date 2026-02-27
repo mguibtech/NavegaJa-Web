@@ -1,59 +1,104 @@
 @import "tailwindcss";
 
+/* Modo escuro por classe (.dark no <html>) */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── Tema Claro — "Encontro das Águas" ─────────────────────────────────────── */
 @theme {
-  /* Rio Negro — Águas Escuras */
-  --color-primary: #2d3436;
-  --color-primary-mid: #3d4547;
-  --color-primary-light: #636e72;
+  /* Primárias — Rio Amazonas (Azul) */
+  --color-primary:            #0B5D8A;
+  --color-primary-mid:        #1B7BA8;
+  --color-primary-light:      #3DA5D9;
+  --color-primary-bg:         #EDF6FB;
   --color-primary-foreground: #ffffff;
 
-  /* Rio Solimões — Águas Barrentas */
-  --color-tertiary: #8b6f47;
-  --color-tertiary-light: #b8956a;
-  --color-tertiary-foreground: #ffffff;
-
-  /* Floresta Amazônica — Verde Intenso */
-  --color-secondary: #27ae60;
-  --color-secondary-dark: #1e8449;
-  --color-secondary-light: #7dcea0;
+  /* Verde — Floresta Amazônica */
+  --color-secondary:            #22874A;
+  --color-secondary-dark:       #1A6B3C;
+  --color-secondary-light:      #A8E4BC;
+  --color-secondary-bg:         #E3F5E8;
   --color-secondary-foreground: #ffffff;
 
-  /* Pôr do Sol — Dourado/Laranja */
-  --color-accent: #f39c12;
-  --color-accent-light: #f8b739;
-  --color-accent-dark: #d68910;
+  /* Dourado — Pôr do Sol no Rio */
+  --color-accent:            #E8960C;
+  --color-accent-light:      #FACC5F;
+  --color-accent-bg:         #FFEAB5;
   --color-accent-foreground: #ffffff;
 
   /* Status */
-  --color-success: #27ae60;
-  --color-success-bg: #d5f4e6;
-  --color-warning: #f39c12;
-  --color-warning-bg: #fcf3cf;
-  --color-destructive: #e74c3c;
-  --color-destructive-bg: #fadbd8;
-  --color-info: #3498db;
-  --color-info-bg: #d6eaf8;
+  --color-success:     #22874A;
+  --color-success-bg:  #E3F5E8;
+  --color-warning:     #E8960C;
+  --color-warning-bg:  #FFF4E5;
+  --color-destructive: #D63031;
+  --color-destructive-bg: #FDEAEA;
+  --color-destructive-foreground: #ffffff;
+  --color-info:        #0B5D8A;
+  --color-info-bg:     #EDF6FB;
 
-  /* Neutros — Tons Terrosos */
-  --color-background: #f8f9fa;
-  --color-foreground: #212529;
-  --color-card: #ffffff;
-  --color-card-foreground: #212529;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #212529;
-  --color-muted: #e9ecef;
-  --color-muted-foreground: #6c757d;
-  --color-border: #dee2e6;
-  --color-input: #e9ecef;
-  --color-ring: #2d3436;
-
-  /* Areia — Tom Claro */
-  --color-sand: #f5f0e8;
-  --color-sand-dark: #e8dcc8;
+  /* Neutros — Luz do Dia */
+  --color-background:        #F5F7F8;
+  --color-foreground:        #0D1B2A;
+  --color-card:              #ffffff;
+  --color-card-foreground:   #0D1B2A;
+  --color-popover:           #ffffff;
+  --color-popover-foreground: #0D1B2A;
+  --color-muted:             #E2E8ED;
+  --color-muted-foreground:  #3D5468;
+  --color-border:            #E2E8ED;
+  --color-input:             #E2E8ED;
+  --color-ring:              #0B5D8A;
 
   --radius-lg: 0.75rem;
   --radius-md: calc(0.75rem - 2px);
   --radius-sm: calc(0.75rem - 4px);
+}
+
+/* ── Tema Escuro — "Rio Negro de Noite" ─────────────────────────────────────── */
+.dark {
+  /* Primárias — mais luminosas no fundo escuro */
+  --color-primary:            #3DA5D9;
+  --color-primary-mid:        #5BBDE8;
+  --color-primary-light:      #A8D8F0;
+  --color-primary-bg:         #0A2030;
+  --color-primary-foreground: #ffffff;
+
+  /* Verde — Floresta à noite */
+  --color-secondary:            #3CB56A;
+  --color-secondary-dark:       #22874A;
+  --color-secondary-light:      #A8E4BC;
+  --color-secondary-bg:         #0A1F12;
+  --color-secondary-foreground: #ffffff;
+
+  /* Dourado — Pôr do Sol */
+  --color-accent:            #F0A42C;
+  --color-accent-light:      #FACC5F;
+  --color-accent-bg:         #231602;
+  --color-accent-foreground: #0D1B2A;
+
+  /* Status */
+  --color-success:     #3CB56A;
+  --color-success-bg:  #0A1F12;
+  --color-warning:     #F0A42C;
+  --color-warning-bg:  #231602;
+  --color-destructive: #E05252;
+  --color-destructive-bg: #230A0A;
+  --color-destructive-foreground: #ffffff;
+  --color-info:        #3DA5D9;
+  --color-info-bg:     #0A2030;
+
+  /* Neutros — Rio Negro de Noite */
+  --color-background:         #090F18;
+  --color-foreground:         #E0EAF2;
+  --color-card:               #0D1A28;
+  --color-card-foreground:    #E0EAF2;
+  --color-popover:            #0D1A28;
+  --color-popover-foreground: #E0EAF2;
+  --color-muted:              #1C3040;
+  --color-muted-foreground:   #8AA4B8;
+  --color-border:             #1C3040;
+  --color-input:              #1C3040;
+  --color-ring:               #3DA5D9;
 }
 
 body {
