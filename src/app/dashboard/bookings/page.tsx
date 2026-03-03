@@ -25,7 +25,20 @@ interface BookingItem {
   seats?: number;
   seatNumber?: string | number;
   passenger?: { name: string; phone: string; email?: string };
-  trip?: { fromCity?: string; toCity?: string; departureTime?: string; boat?: { name: string }; captain?: { name: string } };
+  trip?: { fromCity?: string; toCity?: string; departureTime?: string; boat?: { name: string } | null; captain?: { name: string } };
+  // Novos campos
+  extraPassengers?: { name: string; cpf: string }[];
+  children?: { name?: string; age: number }[];
+  childrenCount?: number;
+  childrenDiscount?: number;
+  // Detalhes (modal)
+  pixPaidAt?: string;
+  pixQrCodeImage?: string;
+  pixQrCode?: string;
+  pixExpiresAt?: string;
+  qrCodeCheckin?: string;
+  checkedInAt?: string;
+  cancelReason?: string;
 }
 
 export default function BookingsPage() {
@@ -1188,12 +1201,10 @@ export default function BookingsPage() {
                                 : 'Data não informada'}
                             </span>
                           </div>
-                          {booking.trip?.boat?.name && (
-                            <div className="flex items-center gap-2 text-sm text-foreground/60">
-                              <Ship className="h-3.5 w-3.5" />
-                              <span>{booking.trip.boat.name}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 text-sm text-foreground/60">
+                            <Ship className="h-3.5 w-3.5" />
+                            <span>{booking.trip?.boat?.name ?? 'Embarcação removida'}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -1371,7 +1382,7 @@ export default function BookingsPage() {
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Embarcação</Label>
-                      <p className="font-semibold">{bookingDetails.trip?.boat?.name || 'Não informado'}</p>
+                      <p className="font-semibold">{bookingDetails.trip?.boat?.name ?? 'Embarcação removida'}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Partida</Label>
@@ -1457,6 +1468,65 @@ export default function BookingsPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Passageiros Extras e Crianças */}
+              {((bookingDetails.extraPassengers && bookingDetails.extraPassengers.length > 0) ||
+                (bookingDetails.children && bookingDetails.children.length > 0)) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Todos os Passageiros
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Passageiros adultos extras */}
+                    {bookingDetails.extraPassengers && bookingDetails.extraPassengers.length > 0 && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Adultos Extras ({bookingDetails.extraPassengers.length})
+                        </Label>
+                        <div className="mt-2 space-y-2">
+                          {bookingDetails.extraPassengers.map((p: { name: string; cpf: string }, i: number) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-sm">
+                              <span className="font-medium">{p.name}</span>
+                              <span className="text-muted-foreground font-mono text-xs">{p.cpf}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Crianças */}
+                    {bookingDetails.children && bookingDetails.children.length > 0 && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Crianças ({bookingDetails.children.length})
+                        </Label>
+                        <div className="mt-2 space-y-2">
+                          {bookingDetails.children.map((c: { name?: string; age: number }, i: number) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-sm">
+                              <span className="font-medium">{c.name || `Criança ${i + 1}`}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground text-xs">{c.age} anos</span>
+                                {c.age <= 9 && (
+                                  <Badge className="bg-secondary/15 text-secondary border-secondary/30 text-xs">
+                                    Grátis
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {bookingDetails.childrenDiscount && bookingDetails.childrenDiscount > 0 && (
+                          <p className="mt-2 text-xs text-secondary font-medium">
+                            Desconto crianças: R$ {Number(bookingDetails.childrenDiscount).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* QR Codes */}
               {(bookingDetails.pixQrCodeImage || bookingDetails.qrCodeCheckin) && (

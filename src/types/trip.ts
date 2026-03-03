@@ -37,8 +37,8 @@ export interface Trip {
   id: string;
   routeId: string | null;
   route?: Route;
-  boatId: string;
-  boat?: Boat;
+  boatId: string | null;
+  boat?: Boat | null;
   captainId: string;
   captain?: Captain;
   type?: TripType;

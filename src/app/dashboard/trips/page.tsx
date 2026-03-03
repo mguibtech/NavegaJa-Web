@@ -108,8 +108,8 @@ function TripDetailsDialog({ trip }: { trip: Trip }) {
                 Embarcação
               </div>
               <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Nome:</span> {trip.boat?.name || 'N/A'}</p>
-                <p><span className="font-medium">Capacidade:</span> {trip.boat?.capacity || 0} pessoas</p>
+                <p><span className="font-medium">Nome:</span> {trip.boat?.name ?? 'Embarcação removida'}</p>
+                <p><span className="font-medium">Capacidade:</span> {trip.boat?.capacity ?? '—'} {trip.boat ? 'pessoas' : ''}</p>
               </div>
             </div>
             <div className="rounded-lg border p-4">
@@ -193,8 +193,8 @@ export default function TripsPage() {
       return (
         trip.origin?.toLowerCase().includes(search) ||
         trip.destination?.toLowerCase().includes(search) ||
-        trip.boat?.name.toLowerCase().includes(search) ||
-        trip.captain?.name.toLowerCase().includes(search)
+        trip.boat?.name?.toLowerCase().includes(search) ||
+        trip.captain?.name?.toLowerCase().includes(search)
       );
     });
   }, [tripsData, searchTerm]);
@@ -360,7 +360,7 @@ export default function TripsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Embarcação</p>
-                        <p className="font-medium">{trip.boat?.name || 'N/A'}</p>
+                        <p className="font-medium">{trip.boat?.name ?? 'Embarcação removida'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Passageiros</p>

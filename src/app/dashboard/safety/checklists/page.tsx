@@ -81,8 +81,8 @@ export default function ChecklistsPage() {
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
-        checklist.boat?.name.toLowerCase().includes(search) ||
-        checklist.captain?.name.toLowerCase().includes(search) ||
+        checklist.boat?.name?.toLowerCase().includes(search) ||
+        checklist.captain?.name?.toLowerCase().includes(search) ||
         checklist.trip?.route?.origin.toLowerCase().includes(search) ||
         checklist.trip?.route?.destination.toLowerCase().includes(search)
       );
