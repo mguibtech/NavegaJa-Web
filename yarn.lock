@@ -4383,6 +4383,7 @@ __metadata:
     leaflet: "npm:^1.9.4"
     lucide-react: "npm:^0.564.0"
     next: "npm:16.1.6"
+    next-themes: "npm:^0.4.6"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-is: "npm:^19.2.4"
@@ -4394,6 +4395,16 @@ __metadata:
     typescript: "npm:^5"
   languageName: unknown
   linkType: soft
+
+"next-themes@npm:^0.4.6":
+  version: 0.4.6
+  resolution: "next-themes@npm:0.4.6"
+  peerDependencies:
+    react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+    react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+  checksum: 10c0/83590c11d359ce7e4ced14f6ea9dd7a691d5ce6843fe2dc520fc27e29ae1c535118478d03e7f172609c41b1ef1b8da6b8dd2d2acd6cd79cac1abbdbd5b99f2c4
+  languageName: node
+  linkType: hard
 
 "next@npm:16.1.6":
   version: 16.1.6

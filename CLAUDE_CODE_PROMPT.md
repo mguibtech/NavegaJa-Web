@@ -355,16 +355,16 @@ navegaja://shipment/validate?trackingCode=XXX&validationCode=YYY
 
 | Rota | Status | O que tem |
 |------|--------|-----------|
-| `/dashboard` | ✅ 100% | KPIs (viagens ativas, usuários, encomendas, SOS), banner de alerta SOS, métricas financeiras (receita, avaliação, ocupação), gráfico de linha 7 dias, pizza de status, barra de usuários, top 5 rotas/capitães/passageiros, feed de atividades recentes, ações rápidas (incluindo botão "Testar notificação" → `POST /notifications/test`) — refetch a cada 30s |
+| `/dashboard` | ✅ 100% | KPIs (viagens ativas, usuários, encomendas, SOS), banner de alerta SOS, widget Flood Hub (segurança de navegação para Manaus/Parintins/Itacoatiara via `GET /weather/navigation-safety`), métricas financeiras (receita, avaliação, ocupação), gráfico de linha 7 dias, pizza de status, barra de usuários, top 5 rotas/capitães/passageiros, feed de atividades recentes, ações rápidas (incluindo botão "Testar notificação" → `POST /notifications/test`) — refetch a cada 30s |
 | `/dashboard/users` | ✅ 100% | Stats (total/admins/capitães/passageiros/bloqueados), busca por nome/email/telefone/CPF, filtro por role e status, listagem paginada (15/pág) com email/telefone/cidade+estado/data de cadastro, badge "Bloqueado" (`isActive=false`), modal de detalhes, alterar role, bloquear/desbloquear, deletar com confirmação |
 | `/dashboard/notifications` | ✅ 100% | Formulário de broadcast: título, mensagem, cidades (tag input — Enter/vírgula para adicionar), perfil (Passageiro/Capitão checkboxes), data extra JSON (com validação client-side) → `POST /admin/notifications/broadcast` → `{ sent, message }` |
 | `/dashboard/users/[id]` | ✅ 100% | Detalhe individual: info pessoal, status (isActive badge), estatísticas por role — capitão: totalTrips/reviewCount/rating/ratingStats/recentReviews; passageiro: passengerRating/passengerReviewCount/passengerRatingStats/recentPassengerReviews |
 | `/dashboard/trips` | ✅ 100% | Stats cards por status, filtros de status e tipo, listagem com modal de detalhes (rota, horários, barco, capitão, ocupação, preço), ação de cancelar viagem |
-| `/dashboard/shipments` | ✅ 100% | Stats cards, filtros de status e busca, listagem com tracking code, modal de detalhes com mapa Leaflet e link Google Maps, atualizar status |
+| `/dashboard/shipments` | ✅ 100% | Stats cards, filtros de status e busca (todos os 8 estados), listagem com tracking code, campo `paidBy` e galeria de `photos[]`, modal de detalhes com mapa Leaflet e link Google Maps, atualizar status |
 | `/dashboard/shipments/[id]` | ✅ 100% | Página de detalhe individual de encomenda com mapa |
-| `/dashboard/bookings` | ✅ 100% | Analytics completo (receita, gráficos linha/barra/pizza, método de pagamento, horários populares, dias movimentados), filtros avançados, exportar CSV, modal de detalhes com timeline de status, QR PIX, QR check-in, cancelar reserva com motivo |
+| `/dashboard/bookings` | ✅ 100% | Analytics completo (receita, gráficos linha/barra/pizza, método de pagamento, horários populares, dias movimentados), filtros avançados, exportar CSV, modal de detalhes com timeline de status, QR PIX, QR check-in, cancelar reserva com motivo, seção "Todos os Passageiros" com `extraPassengers` (nome+CPF adultos), `children` (nome+idade, badge "Grátis" para ≤9 anos), `childrenDiscount`, barco exibido como "Embarcação removida" quando `boat=null` |
 | `/dashboard/coupons` | ✅ 100% | Stats cards (total, ativos, expirados, usos), CRUD completo (criar/editar/pausar/deletar), filtros, progress bar de uso, badge de expiração próxima |
-| `/dashboard/verifications` | ✅ 100% | Pendências: `GET /admin/boats/pending` → `{ pendingCaptains[], pendingBoats[] }`. Cards por capitão (email/tel/CPF/cidade) com thumbnails de habilitação e certificado; cards por embarcação (dono, motivo rejeição anterior, `documentPhotos[]` + `photos[]`). Visualizador de fotos tela cheia com navegação ← →. Aprovar → `PATCH /admin/users/:id/verify` ou `PATCH /admin/boats/:id/verify` `{ approved: true }`. Rejeitar → dialog com motivo obrigatório → `{ approved: false, reason }`. Estado vazio quando tudo verificado. |
+| `/dashboard/verifications` | ✅ 100% | Pendências: `GET /admin/boats/pending` → `{ pendingCaptains[], pendingBoats[] }`. Cards por capitão (email/tel/CPF/cidade) com thumbnails de habilitação e certificado; seção "KYC — Verificação de Identidade" com `kycDocumentUrl`, `kycSelfieUrl` e badge de `kycStatus` (verified/pending/rejected); cards por embarcação (dono, motivo rejeição anterior, `documentPhotos[]` + `photos[]`). Visualizador de fotos tela cheia com navegação ← →. Aprovar → `PATCH /admin/users/:id/verify` ou `PATCH /admin/boats/:id/verify` `{ approved: true }`. Rejeitar → dialog com motivo obrigatório → `{ approved: false, reason }`. Estado vazio quando tudo verificado. |
 | `/dashboard/boats` | ✅ 100% | CRUD completo de embarcações (criar/editar/deletar/visualizar), filtros (busca, tipo, verificação), stats cards (total/verificados/pendentes/meus), botão inline `ShieldCheck` para verificar embarcações pendentes → `PATCH /admin/boats/:id/verify { approved: true }` |
 | `/dashboard/routes` | ✅ Básico | Listagem de rotas |
 | `/dashboard/safety/sos-alerts` | ✅ 100% | Stats cards, mapa Leaflet interativo com pins dos alertas, busca e filtros, botão de ligação direta, dialog de resolução (resolved/false_alarm/cancelled), badge pulsante para ativos — refetch a cada 10s |
@@ -372,6 +372,7 @@ navegaja://shipment/validate?trackingCode=XXX&validationCode=YYY
 | `/dashboard/safety/checklists` | ✅ 100% | Listagem de checklists, estatísticas de conformidade |
 | `/dashboard/reviews` | ✅ 100% | Stats (total, médias por capitão/barco/passageiro, newToday/Week), distribuição de notas, filtros de tipo e busca server-side (debounce 400ms), listagem paginada, botão "Ver detalhes", deletar com confirmação |
 | `/dashboard/reviews/[id]` | ✅ 100% | Detalhe completo: avaliador (email/tel), viagem (origem/destino/data), nota geral + sub-ratings (pontualidade, comunicação, limpeza, conforto), comentários, fotos do barco (`boatPhotos[]`), links para perfis, deletar com redirect |
+| `/dashboard/promotions` | ✅ 100% | CRUD completo de promoções/banners: stats cards (total/ativas/inativas/expiradas), filtros por tipo (banner/promotion/announcement) e status, cards com toggle ativo/inativo, editar, deletar com confirmação, criar nova promoção (título, descrição, tipo, prioridade, validUntil, isActive, callToAction, actionUrl, imageUrl) — endpoints: `GET/POST /promotions`, `PUT /promotions/:id`, `PUT /promotions/:id/toggle`, `DELETE /promotions/:id` |
 
 #### Camada de API (`src/lib/api.ts`):
 
@@ -440,6 +441,18 @@ routes.getAll/getById/search
 safety.getActiveSosAlerts()             → GET  /safety/sos/active
 safety.resolveSosAlert(id, status)      → PATCH /safety/sos/:id/resolve
 safety.CRUD emergencyContacts
+
+weather.getRegions()                    → GET  /weather/regions
+weather.getByRegion(region)             → GET  /weather/region/:region
+weather.getNavigationSafety(lat, lng)   → GET  /weather/navigation-safety?lat=&lng=
+weather.getCurrent(lat, lng, region)    → GET  /weather/current?lat=&lng=&region=
+
+promotions.getAll()                     → GET  /promotions
+promotions.getActive()                  → GET  /promotions/active
+promotions.create(dto)                  → POST /promotions
+promotions.update(id, dto)              → PUT  /promotions/:id
+promotions.toggle(id)                   → PUT  /promotions/:id/toggle
+promotions.delete(id)                   → DELETE /promotions/:id
 
 notifications.test()                    → POST /notifications/test
 ```
@@ -579,7 +592,6 @@ Todas as listagens admin devem ter paginação: `?page=1&limit=20` — o fronten
 Garantir que `arrivalTime > departureTime` em todas as validações.
 
 #### 11. Páginas faltantes no Dashboard Web
-- `/dashboard/promotions` — Gerenciar banners e promoções (backend existe, falta a página web)
 - `/dashboard/gamification` — Visualizar NavegaCoins e ranking de gamificação
 
 ---
@@ -753,9 +765,8 @@ Se não houver uma tarefa específica, implemente nesta ordem:
 8. **Integração clima em `startTrip`** (chamar WeatherService antes de IN_PROGRESS)
 
 ### Dashboard Web (pendências menores):
-9. **Página `/dashboard/promotions`** — gerenciar banners (backend já tem os endpoints)
-10. **Página `/dashboard/gamification`** — visualizar NavegaCoins
+9. **Página `/dashboard/gamification`** — visualizar NavegaCoins e ranking
 
 ---
 
-*Prompt atualizado em: 19/02/2026 | Versão: 4.5 | Projeto: NavegaJá Full Stack (Backend v2.0 + Web Dashboard MVP completo + Verificações + Broadcast Notifications + boatPhotos + Next.js 16 proxy)*
+*Prompt atualizado em: 03/03/2026 | Versão: 4.6 | Projeto: NavegaJá Full Stack (Backend v2.0 + Web Dashboard MVP completo + Promoções + Flood Hub + KYC + Encomendas 8-status + Reservas extraPassengers/children + tratamento de barco deletado)*
