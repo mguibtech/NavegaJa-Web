@@ -115,6 +115,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebar();
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   const { data: sosAlerts = [] } = useQuery({

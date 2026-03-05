@@ -98,7 +98,6 @@ function ActiveBadge({ isActive }: { isActive: boolean }) {
 // Badge + botão de verificação para capitães
 function VerificationBadge({ user, onSuccess }: { user: UserType; onSuccess: () => void }) {
   const queryClient = useQueryClient();
-  if (user.role !== UserRole.CAPTAIN) return null;
 
   const resetMutation = useMutation({
     mutationFn: () => admin.users.verify(user.id, false),
@@ -108,6 +107,8 @@ function VerificationBadge({ user, onSuccess }: { user: UserType; onSuccess: () 
       onSuccess();
     },
   });
+
+  if (user.role !== UserRole.CAPTAIN) return null;
 
   if (user.isVerified === false) {
     return (
