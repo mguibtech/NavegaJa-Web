@@ -620,6 +620,30 @@ export const promotions = {
   },
 };
 
+// Locations API (geocoding colaborativo de comunidades ribeirinhas)
+export const locations = {
+  search: async (q: string, lat?: number, lng?: number) => {
+    const { data } = await api.get('/trips/geocode', { params: { q, lat, lng } });
+    return data;
+  },
+  suggest: async (payload: { name: string; lat: number; lng: number; municipio?: string; state?: string }) => {
+    const { data } = await api.post('/locations/suggest', payload);
+    return data;
+  },
+  getAll: async (status?: 'pending' | 'confirmed' | 'rejected') => {
+    const { data } = await api.get('/admin/locations', { params: status ? { status } : {} });
+    return data;
+  },
+  approve: async (id: string) => {
+    const { data } = await api.patch(`/admin/locations/${id}/approve`);
+    return data;
+  },
+  reject: async (id: string, reason: string) => {
+    const { data } = await api.patch(`/admin/locations/${id}/reject`, { reason });
+    return data;
+  },
+};
+
 // Notifications API
 export const notifications = {
   test: async () => {

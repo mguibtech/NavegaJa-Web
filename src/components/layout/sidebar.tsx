@@ -16,11 +16,12 @@ import {
   Bell,
   ShieldCheck,
   Megaphone,
+  Map,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { safety } from '@/lib/api';
+import { safety, locations } from '@/lib/api';
 import { SosAlertStatus } from '@/types/safety';
 import { useSidebar } from './sidebar-context';
 import { useState, useEffect } from 'react';
@@ -96,6 +97,12 @@ const menuItems = [
         icon: Star,
       },
       {
+        title: 'Localidades',
+        href: '/dashboard/locations',
+        icon: Map,
+        locationbadge: true,
+      },
+      {
         title: 'Notificações',
         href: '/dashboard/notifications',
         icon: Bell,
@@ -121,6 +128,15 @@ export function Sidebar() {
   const activeSosCount = Array.isArray(sosAlerts)
     ? sosAlerts.filter((a: { status: string }) => a.status === SosAlertStatus.ACTIVE).length
     : 0;
+
+  const { data: pendingLocations = [] } = useQuery<{ status: string }[]>({
+    queryKey: ['pending-locations-count'],
+    queryFn: () => locations.getAll('pending'),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+    enabled: mounted,
+  });
+  const pendingLocationsCount = pendingLocations.length;
 
   return (
     <aside className={cn(
@@ -200,6 +216,12 @@ export function Sidebar() {
                               {activeSosCount}
                             </span>
                           )}
+                          {/* Badge Localidades quando recolhido */}
+                          {'locationbadge' in item && item.locationbadge && pendingLocationsCount > 0 && collapsed && (
+                            <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-yellow-500 text-[9px] text-white flex items-center justify-center font-bold">
+                              {pendingLocationsCount}
+                            </span>
+                          )}
                         </div>
                         {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
                         {!collapsed && 'sosbadge' in item && item.sosbadge && activeSosCount > 0 && (
@@ -208,6 +230,13 @@ export function Sidebar() {
                             className="h-5 min-w-5 px-1.5 text-xs font-bold animate-pulse"
                           >
                             {activeSosCount}
+                          </Badge>
+                        )}
+                        {!collapsed && 'locationbadge' in item && item.locationbadge && pendingLocationsCount > 0 && (
+                          <Badge
+                            className="h-5 min-w-5 px-1.5 text-xs font-bold bg-yellow-500 text-white"
+                          >
+                            {pendingLocationsCount}
                           </Badge>
                         )}
                       </Link>

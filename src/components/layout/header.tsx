@@ -122,19 +122,17 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           {/* Tema claro/escuro */}
-          {mounted && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              className="hover:bg-primary/5"
-              title={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            >
-              {resolvedTheme === 'dark'
-                ? <Sun className="h-5 w-5 text-accent" />
-                : <Moon className="h-5 w-5 text-foreground" />}
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="hover:bg-primary/5"
+            suppressHydrationWarning
+            title={resolvedTheme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          >
+            <Sun className={cn('h-5 w-5 text-accent', resolvedTheme !== 'dark' && 'hidden')} />
+            <Moon className={cn('h-5 w-5 text-foreground', resolvedTheme === 'dark' && 'hidden')} />
+          </Button>
 
           {/* Notificações */}
           <DropdownMenu>

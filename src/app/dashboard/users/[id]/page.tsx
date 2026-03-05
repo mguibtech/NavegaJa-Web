@@ -29,6 +29,7 @@ export default function UserDetailsPage() {
       admin: { className: 'bg-primary/15 text-primary border-primary/30', label: 'Administrador', icon: Shield },
       captain: { className: 'bg-secondary/15 text-secondary border-secondary/30', label: 'Capitão', icon: Ship },
       passenger: { className: 'bg-muted text-muted-foreground border-border', label: 'Passageiro', icon: MapPin },
+      boat_manager: { className: 'bg-orange-100 text-orange-800 border-orange-300', label: 'Gestor de Barco', icon: Ship },
     };
     const config = configs[role as keyof typeof configs] || configs.passenger;
     const Icon = config.icon;
@@ -132,6 +133,34 @@ export default function UserDetailsPage() {
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground">CPF</p>
                   <p className="text-sm font-medium">{user.cpf}</p>
+                </div>
+              </div>
+            )}
+
+            {user.homeCommunity && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                <MapPin className="h-4 w-4 text-secondary mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Comunidade</p>
+                  <p className="text-sm font-medium">{user.homeCommunity}</p>
+                  {user.homeMunicipio && (
+                    <p className="text-xs text-muted-foreground">{user.homeMunicipio} — AM</p>
+                  )}
+                  {user.homeLat && user.homeLng && (
+                    <a
+                      href={`https://www.google.com/maps?q=${user.homeLat},${user.homeLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {Number(user.homeLat).toFixed(4)}, {Number(user.homeLng).toFixed(4)} ↗
+                    </a>
+                  )}
+                  {user.locationUpdatedAt && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Atualizado em {format(new Date(user.locationUpdatedAt), 'dd/MM/yyyy', { locale: ptBR })}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

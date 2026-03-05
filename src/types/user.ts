@@ -2,6 +2,7 @@ export enum UserRole {
   ADMIN = 'admin',
   CAPTAIN = 'captain',
   PASSENGER = 'passenger',
+  BOAT_MANAGER = 'boat_manager',
 }
 
 export enum UserStatus {
@@ -34,6 +35,12 @@ export interface User {
   lastLogin?: string;
   emailVerified: boolean;
   phoneVerified: boolean;
+  // Localização da comunidade
+  homeCommunity?: string | null;
+  homeMunicipio?: string | null;
+  homeLat?: number | string | null;
+  homeLng?: number | string | null;
+  locationUpdatedAt?: string | null;
 }
 
 export interface UserStats {

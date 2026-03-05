@@ -35,9 +35,14 @@ function RoleBadge({ role }: { role: UserRole }) {
       icon: User,
       label: 'Passageiro',
     },
+    [UserRole.BOAT_MANAGER]: {
+      className: 'bg-orange-100 text-orange-800 border-orange-300',
+      icon: User,
+      label: 'Gestor de Barco',
+    },
   };
 
-  const config = variants[role];
+  const config = variants[role] ?? { className: 'bg-gray-100 text-gray-800 border-gray-300', icon: User, label: role };
   const Icon = config.icon;
 
   return (

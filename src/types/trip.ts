@@ -48,6 +48,8 @@ export interface Trip {
   destination: string;
   departureAt: string;
   estimatedArrivalAt: string;
+  originLat?: number | null;
+  originLng?: number | null;
   currentLat?: number | null;
   currentLng?: number | null;
   totalSeats: number;

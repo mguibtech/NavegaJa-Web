@@ -1,7 +1,10 @@
 export enum SosAlertType {
+  GENERAL = 'general',
   EMERGENCY = 'emergency',
   MEDICAL = 'medical',
   FIRE = 'fire',
+  SINKING = 'sinking',
+  MAN_OVERBOARD = 'man_overboard',
   WATER_LEAK = 'water_leak',
   MECHANICAL = 'mechanical',
   WEATHER = 'weather',
