@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { MapPin, Check, X, Search, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 type LocationStatus = 'pending' | 'confirmed' | 'rejected';
 type LocationSource = 'user_suggestion' | 'user_home' | 'admin';
@@ -214,6 +214,7 @@ function LocationList({
 export default function LocationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<LocationStatus>('pending');
   const [rejectTarget, setRejectTarget] = useState<CommunityLocation | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -315,29 +316,38 @@ export default function LocationsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="pending">
-        <TabsList>
-          <TabsTrigger value="pending" className="gap-2">
-            Pendentes
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs">
-                {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="confirmed">
-            Confirmadas
-            {confirmedCount > 0 && (
-              <Badge className="h-5 min-w-5 px-1 text-xs bg-secondary text-white">
-                {confirmedCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="rejected">Rejeitadas</TabsTrigger>
-        </TabsList>
+      <div>
+        <div className="flex gap-1 border-b border-border mb-4">
+          {(['pending', 'confirmed', 'rejected'] as LocationStatus[]).map((tab) => {
+            const count = tab === 'pending' ? pendingCount : tab === 'confirmed' ? confirmedCount : rejectedCount;
+            const labels = { pending: 'Pendentes', confirmed: 'Confirmadas', rejected: 'Rejeitadas' };
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                  activeTab === tab
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {labels[tab]}
+                {count > 0 && (
+                  <span className={cn(
+                    'rounded-full h-5 min-w-5 px-1.5 text-xs flex items-center justify-center font-bold text-white',
+                    tab === 'pending' ? 'bg-destructive' : tab === 'confirmed' ? 'bg-secondary' : 'bg-muted-foreground'
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        <TabsContent value="pending" className="mt-4">
-          {isLoading ? (
+        {activeTab === 'pending' && (
+          isLoading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
@@ -353,27 +363,25 @@ export default function LocationsPage() {
               approvingId={approvingId}
               emptyLabel="Nenhuma sugestão pendente."
             />
-          )}
-        </TabsContent>
-
-        <TabsContent value="confirmed" className="mt-4">
+          )
+        )}
+        {activeTab === 'confirmed' && (
           <LocationList
             items={allLocations}
             search={search}
             status="confirmed"
             emptyLabel="Nenhuma localidade confirmada ainda."
           />
-        </TabsContent>
-
-        <TabsContent value="rejected" className="mt-4">
+        )}
+        {activeTab === 'rejected' && (
           <LocationList
             items={allLocations}
             search={search}
             status="rejected"
             emptyLabel="Nenhuma localidade rejeitada."
           />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {/* Dialog de rejeição */}
       <Dialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>

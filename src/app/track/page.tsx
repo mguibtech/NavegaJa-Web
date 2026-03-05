@@ -23,11 +23,35 @@ function StatusBadge({ status }: { status: ShipmentStatus }) {
       label: 'Pendente',
       description: 'Aguardando processamento',
     },
+    [ShipmentStatus.PAID]: {
+      className: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+      icon: Package,
+      label: 'Pago',
+      description: 'Pago, aguardando coleta',
+    },
+    [ShipmentStatus.COLLECTED]: {
+      className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      icon: Package,
+      label: 'Coletado',
+      description: 'Coletado pelo capitão',
+    },
     [ShipmentStatus.IN_TRANSIT]: {
       className: 'bg-blue-100 text-blue-800 border-blue-300',
       icon: Truck,
       label: 'Em Trânsito',
       description: 'Encomenda a caminho do destino',
+    },
+    [ShipmentStatus.ARRIVED]: {
+      className: 'bg-purple-100 text-purple-800 border-purple-300',
+      icon: Truck,
+      label: 'Chegou ao Destino',
+      description: 'Viagem chegou ao destino',
+    },
+    [ShipmentStatus.OUT_FOR_DELIVERY]: {
+      className: 'bg-orange-100 text-orange-800 border-orange-300',
+      icon: Truck,
+      label: 'Saiu para Entrega',
+      description: 'Encomenda saiu para entrega',
     },
     [ShipmentStatus.DELIVERED]: {
       className: 'bg-green-100 text-green-800 border-green-300',
