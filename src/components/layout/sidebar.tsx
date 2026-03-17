@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Megaphone,
   Map,
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +102,11 @@ const menuItems = [
         href: '/dashboard/locations',
         icon: Map,
         locationbadge: true,
+      },
+      {
+        title: 'Gamificação',
+        href: '/dashboard/gamification',
+        icon: Trophy,
       },
       {
         title: 'Notificações',

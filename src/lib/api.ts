@@ -317,7 +317,7 @@ export const admin = {
   // Dashboard
   dashboard: {
     getOverview: async () => {
-      const { data } = await api.get('/admin/dashboard');
+      const { data } = await api.get('/admin/dashboard/overview');
       return data;
     },
     getActivity: async (limit = 50) => {
@@ -469,6 +469,46 @@ export const admin = {
       const { data } = await api.post('/admin/notifications/broadcast', payload);
       return data;
     },
+  },
+
+  // Gamification
+  gamification: {
+    getOverview: async () => {
+      const { data } = await api.get('/admin/gamification');
+      return data;
+    },
+  },
+
+  // Revenue
+  revenue: {
+    getByPeriod: async (period: '7d' | '30d' | '90d' = '30d') => {
+      const { data } = await api.get('/admin/dashboard/revenue', { params: { period } });
+      return data;
+    },
+  },
+};
+
+// Gamification API - Usuário autenticado / capitão
+export const gamification = {
+  getStats: async () => {
+    const { data } = await api.get('/gamification/stats');
+    return data;
+  },
+  getHistory: async (page = 1, limit = 20) => {
+    const { data } = await api.get('/gamification/history', { params: { page, limit } });
+    return data;
+  },
+  getLeaderboard: async () => {
+    const { data } = await api.get('/gamification/leaderboard');
+    return data;
+  },
+  getReferrals: async () => {
+    const { data } = await api.get('/gamification/referrals');
+    return data;
+  },
+  getKmStats: async () => {
+    const { data } = await api.get('/gamification/km-stats');
+    return data;
   },
 };
 

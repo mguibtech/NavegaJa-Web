@@ -35,10 +35,33 @@ import { Label } from '@/components/ui/label';
 import { admin } from '@/lib/api';
 import { createPortal } from 'react-dom';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
 function docUrl(url: string | undefined | null): string {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  return url.startsWith('/') ? url : `/${url}`;
+  if (url.startsWith('data:')) return url;
+
+  const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+  if (normalizedPath.startsWith('/uploads/')) {
+    return normalizedPath;
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.pathname.startsWith('/uploads/')) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+
+    if (['localhost', '127.0.0.1'].includes(parsed.hostname)) {
+      const apiBase = new URL(API_URL);
+      return `${apiBase.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+
+    return url;
+  } catch {
+    return normalizedPath;
+  }
 }
 
 const isPdf = (url: string | undefined | null) =>

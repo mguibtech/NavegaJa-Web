@@ -325,19 +325,20 @@ navegaja://shipment/validate?trackingCode=XXX&validationCode=YYY
 | Módulo | Status | Observação |
 |--------|--------|------------|
 | Auth (login telefone + web, JWT, refresh, forgot/reset) | ✅ 100% | |
-| Users (perfil, busca por ID) | ✅ Básico | Falta admin endpoints |
+| Users (perfil, busca por ID, admin endpoints completos) | ✅ 100% | |
 | Boats (CRUD capitão) | ✅ 100% | |
-| Trips (CRUD, busca, filtros avançados, rotas populares) | ✅ 90% | Falta admin view |
-| Bookings (criar, cancelar, check-in, QR code, admin) | ✅ 100% | |
-| Shipments (8 estados, QR, tracking, timeline) | ✅ 80% | Falta admin view |
+| Trips (CRUD, busca, filtros avançados, rotas populares, admin view, validações) | ✅ 100% | Valida clima (score<50 bloqueia), checklist, ownership, conflito de horário, capacidade |
+| Bookings (criar, cancelar, check-in, QR code, admin CRUD completo) | ✅ 100% | |
+| Shipments (8 estados, QR, tracking, timeline, admin view) | ✅ 100% | |
 | Coupons (CRUD admin, validação completa) | ✅ 100% | |
 | Promotions (banners, CTA, filtros data/prioridade) | ✅ 100% | |
 | Favorites (CRUD + toggle + check) | ✅ 100% | |
-| Gamification (NavegaCoins básico) | ⚠️ Parcial | Integração com shipments incerta |
-| Reviews | ✅ 100% | Módulo completo: entity, service, controller, DTOs, sub-ratings (pontualidade, comunicação, limpeza, conforto), integração gamification |
+| Gamification (NavegaCoins, leaderboard, níveis, integração shipments) | ✅ 100% | `GET /admin/gamification` — overview completo; integração com DELIVERED já ativa |
+| Reviews (sub-ratings, admin CRUD + stats, integração gamification) | ✅ 100% | |
 | Weather (OpenWeatherMap, cache 30min) | ✅ 100% | |
 | Safety (SOS, checklists, contatos emergência) | ✅ 100% | |
-| Admin (bookings, atividades recentes) | ✅ 70% | Falta users/trips/shipments |
+| Admin (users, trips, shipments, bookings, dashboard, reviews, boats) | ✅ 100% | |
+| Notifications (broadcast FCM, test endpoint) | ✅ 100% | `POST /notifications/test`, `POST /admin/notifications/broadcast` |
 
 ---
 
@@ -373,6 +374,7 @@ navegaja://shipment/validate?trackingCode=XXX&validationCode=YYY
 | `/dashboard/reviews` | ✅ 100% | Stats (total, médias por capitão/barco/passageiro, newToday/Week), distribuição de notas, filtros de tipo e busca server-side (debounce 400ms), listagem paginada, botão "Ver detalhes", deletar com confirmação |
 | `/dashboard/reviews/[id]` | ✅ 100% | Detalhe completo: avaliador (email/tel), viagem (origem/destino/data), nota geral + sub-ratings (pontualidade, comunicação, limpeza, conforto), comentários, fotos do barco (`boatPhotos[]`), links para perfis, deletar com redirect |
 | `/dashboard/promotions` | ✅ 100% | CRUD completo de promoções/banners: stats cards (total/ativas/inativas/expiradas), filtros por tipo (banner/promotion/announcement) e status, cards com toggle ativo/inativo, editar, deletar com confirmação, criar nova promoção (título, descrição, tipo, prioridade, validUntil, isActive, callToAction, actionUrl, imageUrl) — endpoints: `GET/POST /promotions`, `PUT /promotions/:id`, `PUT /promotions/:id/toggle`, `DELETE /promotions/:id` |
+| `/dashboard/gamification` | ❌ Falta | Alimentada por `GET /admin/gamification` — overview NavegaCoins/km, distribuição por nível, leaderboard top 10 |
 
 #### Camada de API (`src/lib/api.ts`):
 
@@ -415,6 +417,12 @@ admin.reviews.getAll(params)            → GET  /admin/reviews          (params
 admin.reviews.getById(id)               → GET  /admin/reviews/:id
 admin.reviews.getStats()                → GET  /admin/reviews/stats      → { total, passengerToCapitain, captainToPassenger, averages: { captain, boat, passenger }, captainRatingDistribution, newToday, newThisWeek, newThisMonth }
 admin.reviews.delete(id)                → DELETE /admin/reviews/:id
+
+admin.dashboard.getRevenue(period)      → GET  /admin/dashboard/revenue?period=7d|30d|90d
+                                              → { period, labels[], bookings[], shipments[], total[], totals: { bookings, shipments, combined } }
+
+admin.gamification.getOverview()        → GET  /admin/gamification
+                                              → { overview: { totalNavegaCoinsDistributed, totalKmTraveled, totalEligibleUsers, newUsersToday, newUsersThisWeek, newUsersThisMonth }, levelDistribution: { Marinheiro, Navegador, Capitão, Almirante }, leaderboard: [{ position, id, name, avatarUrl, totalPoints, level }] }
 
 bookings.getAll(params)                 → GET  /admin/bookings
 bookings.getStats()                     → GET  /admin/bookings/stats
@@ -470,129 +478,24 @@ notifications.test()                    → POST /notifications/test
 
 ---
 
-## ❌ O QUE FALTA IMPLEMENTAR (Priorizado)
+## ❌ O QUE FALTA IMPLEMENTAR
 
-> **Nota:** O dashboard web já está **100% pronto** do lado do frontend para todos os itens abaixo.
-> O que falta é **exclusivamente no backend**.
+> **Atenção:** Os documentos de análise anteriores estavam desatualizados.
+> O backend está **praticamente completo**. O que foi listado como "faltando" já existia.
+> Verificar sempre o código real antes de implementar novamente.
 
-### 🔴 CRÍTICO — Priority 1 (Backend)
+### 🟡 PENDENTE — Dashboard Web
 
-#### 1. Admin Module — Endpoints faltantes no backend
-O frontend já consome todos esses endpoints — basta implementá-los no backend:
+#### 1. Página `/dashboard/gamification`
+Alimentada por `GET /admin/gamification`. Layout sugerido:
+- Cards de overview (NavegaCoins totais, km totais, usuários por nível)
+- Gráfico pizza/donut com distribuição por nível (Marinheiro/Navegador/Capitão/Almirante)
+- Tabela top 10 leaderboard com posição, nome, nível e pontos totais
 
-```
-GET  /admin/users              — Listar todos usuários (paginação + filtros: role, status, search)
-                                  Aceita: ?page=1&limit=20&role=captain&status=active&search=texto
-                                  Retorna: User[] | { data: User[], total, page, limit }
-GET  /admin/users/stats        — { total, byRole: { admin, captain, passenger }, newToday, activeUsers, blockedUsers }
-GET  /admin/users/:id          — Detalhes completos de um usuário (sem passwordHash)
-PATCH /admin/users/:id/role   — Body: { role: 'passenger'|'captain'|'admin' }
-                                  Retorna: { message: string, user: User }
-PATCH /admin/users/:id/status — Body: { isActive: boolean }
-                                  Retorna: { message: string, user: User }   ← NÃO retornar { userId, active }
-DELETE /admin/users/:id        — Deletar usuário (não permitir deletar admins)
-
-GET  /admin/trips              — Listar TODAS as viagens (paginação + filtros: status, type, search)
-GET  /admin/trips/stats        — { total, byStatus: { scheduled, in_progress, completed, cancelled }, growth }
-PATCH /admin/trips/:id/status — Admin alterar status de qualquer viagem
-DELETE /admin/trips/:id        — Deletar viagem
-
-GET  /admin/shipments          — Listar TODAS as encomendas (paginação + filtros: status, search)
-GET  /admin/shipments/stats    — { total, pending, inTransit, delivered, growth }
-PATCH /admin/shipments/:id/status — Admin alterar status manualmente
-
-GET  /admin/dashboard          — Overview geral:
-                                  trips: { total, byStatus, growth }
-                                  users: { total, byRole, activeUsers, newToday, growth }
-                                  shipments: { total, pending, inTransit, delivered, growth }
-                                  sosAlerts: { active, totalThisWeek, growth }
-                                  revenue: { total, average }
-                                  rating: { average, count }
-                                  occupancy: { rate, bookedSeats, totalSeats }
-                                  topRoutes: [{ name, count }]
-                                  topCaptains: [{ name, rating }]
-                                  topPassengers: [{ name, trips }]
-
-GET  /admin/dashboard/activity?limit=50 — Feed de atividades recentes:
-                                  [{ type, description, user: { name }, timestamp, status }]
-
-GET  /admin/dashboard/chart?days=7 — Dados para gráfico de linha:
-                                  { labels: ['Dom','Seg',...], trips: [n,...], users: [n,...], bookings: [n,...] }
-```
-
-#### 2. Admin Bookings — Endpoints faltantes
-```
-GET  /admin/bookings           — Listar reservas (paginação + filtros)
-GET  /admin/bookings/stats     — Estatísticas de reservas
-GET  /admin/bookings/:id       — Detalhes de uma reserva
-PATCH /admin/bookings/:id/status — Alterar status
-DELETE /admin/bookings/:id     — Deletar reserva
-```
-
-#### 3. Validações de segurança em Trips
-```typescript
-// Em trips.service.ts — método startTrip / updateStatus para IN_PROGRESS:
-// ❌ Não valida clima antes de iniciar
-// ❌ Não valida checklist completo antes de iniciar
-// ❌ Não valida se data de partida é futura (createTrip)
-// ❌ Não valida se capitão é dono da embarcação
-// ❌ Não valida conflito de horário da embarcação
-// ❌ Não valida se totalSeats <= capacidade da embarcação
-```
-
-### 🟠 IMPORTANTE — Priority 2 (Backend)
-
-#### 4. Integração clima → iniciar viagem
-O `WeatherService` existe e está funcional. Precisa ser chamado em `trips.service.ts` antes de mudar status para `IN_PROGRESS`.
-
-#### 5. Integração gamification → entrega de shipment
-O `GamificationService` existe. Precisa ser chamado quando shipment muda para `DELIVERED`.
-
-#### 6. Admin Reviews — Endpoints faltantes no backend
-O frontend já consome todos esses endpoints via `admin.reviews.*`:
-```
-GET  /admin/reviews?page=1&limit=20&type=passenger_to_captain&search=João
-                        → { reviews: Review[], total, page, limit, pages }
-GET  /admin/reviews/stats
-                        → { total, passengerToCapitain, captainToPassenger, averages: { captain, boat, passenger }, captainRatingDistribution: { 5,4,3,2,1 }, newToday, newThisWeek, newThisMonth }
-GET  /admin/reviews/:id → Review completa com reviewer.email/phone, captain.rating, boat.rating
-DELETE /admin/reviews/:id → Remove e recalcula médias automaticamente
-```
-**Campos de sub-rating esperados na Review:**
-```
-punctualityRating?: number    (Capitão — Pontualidade)
-communicationRating?: number  (Capitão — Comunicação)
-cleanlinessRating?: number    (Barco — Limpeza)
-comfortRating?: number        (Barco — Conforto)
-boatPhotos?: string[]         (URLs das fotos do barco — exibidas no detalhe da review)
-```
-**GET /admin/users/:id** deve retornar novos campos para capitão:
-`rating`, `totalTrips`, `reviewCount`, `recentReviews`, `ratingStats: { total, average, distribution }`
-E para passageiro:
-`passengerRating`, `passengerReviewCount`, `recentPassengerReviews`, `passengerRatingStats`
-
-### 🟡 DESEJÁVEL — Priority 3
-
-#### 7. Paginação em listagens do admin (Backend)
-Todas as listagens admin devem ter paginação: `?page=1&limit=20` — o frontend já envia esses parâmetros.
-
-#### 8. Push notifications (Backend pendente — Web ✅ feito)
-- **Web:** botão "Testar notificação" no dashboard chama `POST /notifications/test` ✅
-- **Web:** página `/dashboard/notifications` com formulário de broadcast → `POST /admin/notifications/broadcast` com payload `{ title, body, filters?: { cities?, roles? }, data? }` ✅
-- **Backend:** implementar `NotificationsModule` com `POST /notifications/test` e `POST /admin/notifications/broadcast` (Firebase Cloud Messaging)
-
-#### 9. Verificação de capitães e embarcações (Backend pendente — Web ✅ feito)
-- **Web:** página `/dashboard/verifications` com visualizador de documentos, aprovação e rejeição ✅
-- **Backend precisa ter:**
-  - `GET /admin/boats/pending` → `{ pendingCaptains: [{ id, name, phone, email, cpf, city, state, licensePhotoUrl, certificatePhotoUrl }], pendingBoats: [{ id, name, documentPhotos[], photos[], rejectionReason, owner }] }`
-  - `PATCH /admin/users/:id/verify` → body: `{ approved: boolean, reason?: string }`
-  - `PATCH /admin/boats/:id/verify` → body: `{ approved: boolean, reason?: string }`
-
-#### 10. Validação de formato de datas (Backend)
-Garantir que `arrivalTime > departureTime` em todas as validações.
-
-#### 11. Páginas faltantes no Dashboard Web
-- `/dashboard/gamification` — Visualizar NavegaCoins e ranking de gamificação
+#### 2. Gráfico de receita no `/dashboard`
+O endpoint `GET /admin/dashboard/revenue?period=7d|30d|90d` já existe.
+Retorna `{ labels[], bookings[], shipments[], total[], totals }`.
+Pode ser adicionado como gráfico de linha no dashboard principal com filtro de período.
 
 ---
 
@@ -750,23 +653,13 @@ curl -X POST http://localhost:3000/auth/login \
 
 ## 🚀 PRÓXIMA TAREFA SUGERIDA
 
-> O Dashboard Web está **completo**. O foco agora é o **Backend**.
+> Backend e Dashboard Web estão **essencialmente completos**.
+> Restam apenas 2 itens no frontend.
 
-Se não houver uma tarefa específica, implemente nesta ordem:
-
-### Backend (prioridade máxima):
-1. **`GET /admin/dashboard`** + **`/admin/dashboard/activity`** + **`/admin/dashboard/chart`** — desbloqueia o overview do dashboard
-2. **`GET /admin/users`** + **`GET /admin/users/stats`** — com paginação e filtros por role/status
-3. **`GET /admin/users/:id`** + **`PATCH /admin/users/:id/role`** + **`DELETE /admin/users/:id`**
-4. **`GET /admin/trips`** + **`GET /admin/trips/stats`** + **`PATCH /admin/trips/:id/status`**
-5. **`GET /admin/shipments`** + **`GET /admin/shipments/stats`** + **`PATCH /admin/shipments/:id/status`**
-6. **`GET /admin/bookings`** + **`GET /admin/bookings/stats`** + ações de admin
-7. **Validações em `trips.service.ts`** (datas, capacidade, ownership da embarcação)
-8. **Integração clima em `startTrip`** (chamar WeatherService antes de IN_PROGRESS)
-
-### Dashboard Web (pendências menores):
-9. **Página `/dashboard/gamification`** — visualizar NavegaCoins e ranking
+### Dashboard Web:
+1. **Página `/dashboard/gamification`** — `GET /admin/gamification` → overview, distribuição por nível, leaderboard top 10
+2. **Gráfico de receita no `/dashboard`** — `GET /admin/dashboard/revenue?period=30d` → gráfico linha com bookings + shipments + total
 
 ---
 
-*Prompt atualizado em: 03/03/2026 | Versão: 4.6 | Projeto: NavegaJá Full Stack (Backend v2.0 + Web Dashboard MVP completo + Promoções + Flood Hub + KYC + Encomendas 8-status + Reservas extraPassengers/children + tratamento de barco deletado)*
+*Prompt atualizado em: 09/03/2026 | Versão: 4.7 | Projeto: NavegaJá Full Stack (Backend 100% completo + Web Dashboard 95% — falta apenas /dashboard/gamification + gráfico receita no dashboard principal)*
