@@ -1,9 +1,15 @@
 'use client';
 
-import { Bell, LogOut, User, Menu, AlertTriangle, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { Bell, LogOut, User, Menu, AlertTriangle, ShieldCheck, Sun, Moon, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from './sidebar-context';
-import { clearAuthStorage, safety, admin } from '@/lib/api';
+import {
+  clearAuthStorage,
+  safety,
+  admin,
+  normalizeDocumentChangeRequestsResponse,
+  type DocumentChangeRequestListResponse,
+} from '@/lib/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,12 +72,22 @@ export function Header() {
     enabled: mounted,
   });
 
+  const { data: documentChangeRequestData } = useQuery<DocumentChangeRequestListResponse>({
+    queryKey: ['document-change-requests'],
+    queryFn: () => admin.documentChangeRequests.getAll({ status: 'PENDING' }),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+    enabled: mounted,
+  });
+
   const activeSos: Array<{ id: string; user?: { name?: string } }> = Array.isArray(sosAlerts)
     ? sosAlerts.filter((a: { status: string }) => a.status === SosAlertStatus.ACTIVE)
     : [];
 
   const pendingCaptains: Array<{ id: string; name: string }> = pendingData?.pendingCaptains ?? [];
   const pendingBoats: Array<{ id: string; name: string }> = pendingData?.pendingBoats ?? [];
+  const pendingDocumentChangeRequests = normalizeDocumentChangeRequestsResponse(documentChangeRequestData)
+    .filter(request => request.status === 'PENDING');
 
   const notifications: Notification[] = [
     ...activeSos.map((sos) => ({
@@ -85,7 +101,7 @@ export function Header() {
     ...pendingCaptains.map((c) => ({
       id: `captain-${c.id}`,
       Icon: ShieldCheck,
-      label: 'Capitão aguardando verificação',
+      label: 'Capitão com documentos pendentes',
       description: c.name,
       href: '/dashboard/verifications',
       urgent: false,
@@ -95,6 +111,14 @@ export function Header() {
       Icon: ShieldCheck,
       label: 'Embarcação aguardando verificação',
       description: b.name,
+      href: '/dashboard/verifications',
+      urgent: false,
+    })),
+    ...pendingDocumentChangeRequests.map((request) => ({
+      id: `document-change-${request.id}`,
+      Icon: FileText,
+      label: 'Alteração de documento pendente',
+      description: request.user?.name ?? 'Capitão',
       href: '/dashboard/verifications',
       urgent: false,
     })),

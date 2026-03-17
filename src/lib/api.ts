@@ -3,6 +3,49 @@ import type { InternalAxiosRequestConfig } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+export type CaptainDocumentType =
+  | 'SELFIE'
+  | 'LICENCA_NAVEGACAO'
+  | 'CERTIFICADO_SEGURANCA';
+
+export type DocumentChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface DocumentChangeRequestUser {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+}
+
+export interface DocumentChangeRequest {
+  id: string;
+  userId: string;
+  documentType: CaptainDocumentType;
+  currentDocumentUrl?: string | null;
+  newDocumentUrl: string;
+  status: DocumentChangeRequestStatus;
+  createdAt: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  rejectionReason?: string | null;
+  user?: DocumentChangeRequestUser | null;
+  reviewer?: {
+    id: string;
+    name: string;
+    email?: string | null;
+  } | null;
+}
+
+export type DocumentChangeRequestListResponse = DocumentChangeRequest[];
+
+export function normalizeDocumentChangeRequestsResponse(
+  payload: DocumentChangeRequestListResponse | undefined,
+): DocumentChangeRequest[] {
+  return payload ?? [];
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -365,6 +408,26 @@ export const admin = {
       const body: Record<string, unknown> = { verified };
       if (rejectionReason) body.rejectionReason = rejectionReason;
       const { data } = await api.patch(`/admin/users/${id}/verify`, body);
+      return data;
+    },
+  },
+
+  // Solicitações de alteração de documento
+  documentChangeRequests: {
+    getAll: async (params?: {
+      status?: DocumentChangeRequestStatus;
+      documentType?: CaptainDocumentType;
+      userId?: string;
+    }) => {
+      const { data } = await api.get<DocumentChangeRequestListResponse>('/document-change-request', { params });
+      return data;
+    },
+    approve: async (id: string) => {
+      const { data } = await api.patch(`/document-change-request/${id}/approve`);
+      return data;
+    },
+    reject: async (id: string, rejectionReason: string) => {
+      const { data } = await api.patch(`/document-change-request/${id}/reject`, { rejectionReason });
       return data;
     },
   },

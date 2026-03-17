@@ -32,33 +32,43 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { admin } from '@/lib/api';
+import {
+  admin,
+  normalizeDocumentChangeRequestsResponse,
+  type DocumentChangeRequest,
+  type DocumentChangeRequestListResponse,
+} from '@/lib/api';
 import { createPortal } from 'react-dom';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+function stripTrailingSlashFromFileUrl(url: string): string {
+  return url.replace(/(\.[a-z0-9]{2,8})\/+(?=($|[?#]))/i, '$1');
+}
 
 function docUrl(url: string | undefined | null): string {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
 
-  const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+  const normalizedPath = stripTrailingSlashFromFileUrl(url.startsWith('/') ? url : `/${url}`);
   if (normalizedPath.startsWith('/uploads/')) {
     return normalizedPath;
   }
 
   try {
     const parsed = new URL(url);
+    const sanitizedPath = stripTrailingSlashFromFileUrl(parsed.pathname);
 
-    if (parsed.pathname.startsWith('/uploads/')) {
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (sanitizedPath.startsWith('/uploads/')) {
+      return `${sanitizedPath}${parsed.search}${parsed.hash}`;
     }
 
     if (['localhost', '127.0.0.1'].includes(parsed.hostname)) {
       const apiBase = new URL(API_URL);
-      return `${apiBase.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      return `${apiBase.origin}${sanitizedPath}${parsed.search}${parsed.hash}`;
     }
 
-    return url;
+    return stripTrailingSlashFromFileUrl(url);
   } catch {
     return normalizedPath;
   }
@@ -71,20 +81,50 @@ function initials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
+function formatDocumentType(type: string) {
+  const labels: Record<string, string> = {
+    SELFIE: 'Selfie',
+    LICENCA_NAVEGACAO: 'Licença de Navegação',
+    CERTIFICADO_SEGURANCA: 'Certificado de Segurança',
+    OUTRO: 'Outro documento',
+  };
+
+  return labels[type] ?? type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '—';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(parsed);
+}
+
+function removeDocumentChangeRequestFromCache(
+  payload: DocumentChangeRequestListResponse | undefined,
+  id: string,
+): DocumentChangeRequestListResponse | undefined {
+  if (!payload) return payload;
+  return payload.filter(request => request.id !== id);
+}
+
 interface PendingCaptain {
   id: string;
   name: string;
   phone: string;
-  email: string;
-  cpf?: string;
-  city?: string;
-  state?: string;
-  licensePhotoUrl?: string;
-  certificatePhotoUrl?: string;
-  // Novos campos KYC
-  kycStatus?: string;
-  kycDocumentUrl?: string;
-  kycSelfieUrl?: string;
+  email: string | null;
+  cpf?: string | null;
+  city?: string | null;
+  state?: string | null;
+  createdAt?: string;
+  selfieUrl?: string | null;
+  licensePhotoUrl?: string | null;
+  certificatePhotoUrl?: string | null;
+  documentChangeRequests?: DocumentChangeRequest[];
 }
 
 interface PendingBoat {
@@ -102,7 +142,7 @@ interface PendingData {
 }
 
 type ViewerState = { photos: string[]; labels: string[]; index: number } | null;
-type RejectTarget = { type: 'captain' | 'boat'; id: string; name: string } | null;
+type RejectTarget = { type: 'captain' | 'boat' | 'document-change-request'; id: string; name: string } | null;
 
 // ─── Viewer de documento full-screen (z-200) ─────────────────────────────────
 function DocumentViewer({
@@ -416,10 +456,17 @@ export default function VerificationsPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [selectedCaptain, setSelectedCaptain] = useState<PendingCaptain | null>(null);
   const [selectedBoat, setSelectedBoat] = useState<PendingBoat | null>(null);
+  const [selectedDocumentChangeRequest, setSelectedDocumentChangeRequest] = useState<DocumentChangeRequest | null>(null);
 
-  const { data, isLoading } = useQuery<PendingData>({
+  const { data, isLoading: isLoadingPending } = useQuery<PendingData>({
     queryKey: ['pending-verifications'],
     queryFn: () => admin.boats.getPending(),
+    staleTime: 0,
+  });
+
+  const { data: documentChangeRequestData, isLoading: isLoadingRequests } = useQuery<DocumentChangeRequestListResponse>({
+    queryKey: ['document-change-requests'],
+    queryFn: () => admin.documentChangeRequests.getAll({ status: 'PENDING' }),
     staleTime: 0,
   });
 
@@ -451,10 +498,43 @@ export default function VerificationsPage() {
     },
   });
 
+  const documentChangeRequestApproveMutation = useMutation({
+    mutationFn: (id: string) => admin.documentChangeRequests.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<DocumentChangeRequestListResponse>(
+        ['document-change-requests'],
+        old => removeDocumentChangeRequestFromCache(old, id),
+      );
+      setRejectTarget(null);
+      setRejectReason('');
+      setSelectedDocumentChangeRequest(null);
+    },
+  });
+
+  const documentChangeRequestRejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => admin.documentChangeRequests.reject(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.setQueryData<DocumentChangeRequestListResponse>(
+        ['document-change-requests'],
+        old => removeDocumentChangeRequestFromCache(old, id),
+      );
+      setRejectTarget(null);
+      setRejectReason('');
+      setSelectedDocumentChangeRequest(null);
+    },
+  });
+
   const pendingCaptains = data?.pendingCaptains ?? [];
   const pendingBoats = data?.pendingBoats ?? [];
-  const totalPending = pendingCaptains.length + pendingBoats.length;
-  const isMutating = captainVerifyMutation.isPending || boatVerifyMutation.isPending;
+  const pendingDocumentChangeRequests = normalizeDocumentChangeRequestsResponse(documentChangeRequestData)
+    .filter(request => request.status === 'PENDING');
+  const totalPending = pendingCaptains.length + pendingBoats.length + pendingDocumentChangeRequests.length;
+  const isLoading = isLoadingPending || isLoadingRequests;
+  const isMutating =
+    captainVerifyMutation.isPending
+    || boatVerifyMutation.isPending
+    || documentChangeRequestApproveMutation.isPending
+    || documentChangeRequestRejectMutation.isPending;
 
   const openViewer = (photos: string[], labels: string[], index = 0) =>
     setViewer({ photos, labels, index });
@@ -463,7 +543,8 @@ export default function VerificationsPage() {
     if (!rejectTarget) return;
     const { type, id } = rejectTarget;
     if (type === 'captain') captainVerifyMutation.mutate({ id, verified: false, rejectionReason: rejectReason });
-    else boatVerifyMutation.mutate({ id, approved: false, reason: rejectReason });
+    else if (type === 'boat') boatVerifyMutation.mutate({ id, approved: false, reason: rejectReason });
+    else documentChangeRequestRejectMutation.mutate({ id, reason: rejectReason });
   };
 
   return (
@@ -474,7 +555,7 @@ export default function VerificationsPage() {
           Verificações Pendentes
         </h1>
         <p className="text-muted-foreground">
-          Aprove ou rejeite documentos de capitães e embarcações
+          Aprove ou rejeite verificações iniciais e solicitações de troca de documentos
         </p>
       </div>
 
@@ -487,22 +568,77 @@ export default function VerificationsPage() {
           <CardContent className="py-16 text-center text-muted-foreground">
             <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500" />
             <p className="text-lg font-medium">Nenhuma pendência!</p>
-            <p className="text-sm mt-1">Todos os capitães e embarcações foram verificados.</p>
+            <p className="text-sm mt-1">Não há verificações iniciais nem solicitações de alteração de documento aguardando análise.</p>
           </CardContent>
         </Card>
       ) : (
         <>
+          {/* ── Alterações de documento ── */}
+          {pendingDocumentChangeRequests.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Solicitações de Alteração de Documento
+                <Badge variant="secondary">{pendingDocumentChangeRequests.length}</Badge>
+              </h2>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {pendingDocumentChangeRequests.map(request => {
+                  const ownerName = request.user?.name ?? 'Capitão';
+                  const ownerEmail = request.user?.email ?? 'Email não informado';
+                  const documentLabel = formatDocumentType(request.documentType);
+
+                  return (
+                    <Card
+                      key={request.id}
+                      className="cursor-pointer hover:shadow-md transition-all group overflow-hidden border-0 shadow-sm"
+                      onClick={() => setSelectedDocumentChangeRequest(request)}
+                    >
+                      <div className="h-1.5 w-full bg-cyan-500" />
+                      <CardContent className="pt-4 pb-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-cyan-100 flex items-center justify-center shrink-0 text-cyan-700 font-bold text-sm">
+                              {initials(ownerName)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm truncate">{ownerName}</p>
+                              <p className="text-xs text-muted-foreground truncate">{ownerEmail}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-cyan-700 border-cyan-300 shrink-0 text-xs">
+                            Pendente
+                          </Badge>
+                        </div>
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                          <p className="font-medium text-foreground truncate">{documentLabel}</p>
+                          <p className="truncate">
+                            {request.currentDocumentUrl ? 'Substituição de documento existente' : 'Primeiro documento do tipo'}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                          <span>{formatDateTime(request.createdAt)}</span>
+                          <span className="text-primary font-medium group-hover:underline">Comparar →</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* ── Capitães ── */}
           {pendingCaptains.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-xl font-semibold flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Capitães Pendentes
+                Capitães com Documentos Pendentes
                 <Badge variant="secondary">{pendingCaptains.length}</Badge>
               </h2>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {pendingCaptains.map(captain => {
-                  const docCount = [captain.licensePhotoUrl, captain.certificatePhotoUrl].filter(Boolean).length;
+                  const docCount = [captain.selfieUrl, captain.licensePhotoUrl, captain.certificatePhotoUrl].filter(Boolean).length;
+                  const requestCount = captain.documentChangeRequests?.filter(request => request.status === 'PENDING').length ?? 0;
                   return (
                     <Card
                       key={captain.id}
@@ -518,7 +654,7 @@ export default function VerificationsPage() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-semibold text-sm truncate">{captain.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{captain.email}</p>
+                              <p className="text-xs text-muted-foreground truncate">{captain.email ?? 'Email não informado'}</p>
                             </div>
                           </div>
                           <Badge variant="outline" className="text-amber-700 border-amber-300 shrink-0 text-xs">
@@ -526,10 +662,13 @@ export default function VerificationsPage() {
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {[captain.city, captain.state].filter(Boolean).join(', ') || 'Local não informado'}
-                          </span>
+                          <div className="min-w-0 space-y-1">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {[captain.city, captain.state].filter(Boolean).join(', ') || 'Local não informado'}
+                            </span>
+                            <span>{requestCount} solicitaç{requestCount === 1 ? 'ão' : 'ões'} pendente{requestCount === 1 ? '' : 's'}</span>
+                          </div>
                           <span className="text-primary font-medium group-hover:underline">
                             {docCount} doc{docCount !== 1 ? 's' : ''} · Ver →
                           </span>
@@ -594,61 +733,110 @@ export default function VerificationsPage() {
         </>
       )}
 
+      {/* ── Overlay solicitação de alteração de documento ── */}
+      {selectedDocumentChangeRequest && (() => {
+        const ownerName = selectedDocumentChangeRequest.user?.name ?? 'Capitão';
+        const currentDocs = selectedDocumentChangeRequest.currentDocumentUrl ? [selectedDocumentChangeRequest.currentDocumentUrl] : [];
+        const proposedDocs = selectedDocumentChangeRequest.newDocumentUrl ? [selectedDocumentChangeRequest.newDocumentUrl] : [];
+        const allPhotos = [...currentDocs, ...proposedDocs];
+        const allLabels = [
+          ...currentDocs.map(() => 'Documento atual'),
+          ...proposedDocs.map(() => 'Novo documento enviado'),
+        ];
+        const ownerLocation = [selectedDocumentChangeRequest.user?.city, selectedDocumentChangeRequest.user?.state]
+          .filter(Boolean)
+          .join(', ');
+
+        return (
+          <DetailOverlay
+            avatarColor="#06b6d4"
+            title={ownerName}
+            subtitle="Solicitação de alteração de documento aguardando aprovação administrativa"
+            badge={<Badge variant="outline" className="text-cyan-700 border-cyan-300">Pendente</Badge>}
+            info={[
+              { icon: <FileText className="h-3.5 w-3.5" />, value: formatDocumentType(selectedDocumentChangeRequest.documentType) },
+              ...(selectedDocumentChangeRequest.user?.email ? [{ icon: <Mail className="h-3.5 w-3.5" />, value: selectedDocumentChangeRequest.user.email }] : []),
+              ...(selectedDocumentChangeRequest.user?.phone ? [{ icon: <Phone className="h-3.5 w-3.5" />, value: selectedDocumentChangeRequest.user.phone }] : []),
+              ...(ownerLocation ? [{ icon: <MapPin className="h-3.5 w-3.5" />, value: ownerLocation }] : []),
+              { icon: <AlertTriangle className="h-3.5 w-3.5" />, value: `Solicitado em ${formatDateTime(selectedDocumentChangeRequest.createdAt)}` },
+            ]}
+            docSections={[
+              {
+                heading: 'Documento Atual',
+                photos: currentDocs,
+                labels: currentDocs.map(() => 'Documento atual'),
+                offset: 0,
+                allPhotos,
+                allLabels,
+              },
+              {
+                heading: 'Novo Documento Enviado',
+                photos: proposedDocs,
+                labels: proposedDocs.map(() => 'Novo documento enviado'),
+                offset: currentDocs.length,
+                allPhotos,
+                allLabels,
+              },
+            ]}
+            onClose={() => setSelectedDocumentChangeRequest(null)}
+            onApprove={() => documentChangeRequestApproveMutation.mutate(selectedDocumentChangeRequest.id)}
+            onReject={() => {
+              setRejectTarget({ type: 'document-change-request', id: selectedDocumentChangeRequest.id, name: ownerName });
+              setRejectReason('');
+            }}
+            isMutating={isMutating}
+            openViewer={openViewer}
+          />
+        );
+      })()}
+
       {/* ── Overlay capitão ── */}
       {selectedCaptain && (() => {
+        const pendingRequests = selectedCaptain.documentChangeRequests?.filter(request => request.status === 'PENDING') ?? [];
         const navDocs = [
           ...(selectedCaptain.licensePhotoUrl ? [selectedCaptain.licensePhotoUrl] : []),
           ...(selectedCaptain.certificatePhotoUrl ? [selectedCaptain.certificatePhotoUrl] : []),
         ];
         const navLabels = [
-          ...(selectedCaptain.licensePhotoUrl ? ['Habilitação Náutica'] : []),
-          ...(selectedCaptain.certificatePhotoUrl ? ['Certificado Náutico'] : []),
+          ...(selectedCaptain.licensePhotoUrl ? ['Licença de Navegação'] : []),
+          ...(selectedCaptain.certificatePhotoUrl ? ['Certificado de Segurança'] : []),
         ];
-        const kycDocs = [
-          ...(selectedCaptain.kycDocumentUrl ? [selectedCaptain.kycDocumentUrl] : []),
-          ...(selectedCaptain.kycSelfieUrl ? [selectedCaptain.kycSelfieUrl] : []),
+        const identityDocs = [
+          ...(selectedCaptain.selfieUrl ? [selectedCaptain.selfieUrl] : []),
         ];
-        const kycLabels = [
-          ...(selectedCaptain.kycDocumentUrl ? ['Documento de Identidade (KYC)'] : []),
-          ...(selectedCaptain.kycSelfieUrl ? ['Selfie (KYC)'] : []),
+        const identityLabels = [
+          ...(selectedCaptain.selfieUrl ? ['Selfie'] : []),
         ];
-        const allPhotos = [...navDocs, ...kycDocs];
-        const allLabels = [...navLabels, ...kycLabels];
-
-        const kycStatusBadge = selectedCaptain.kycStatus
-          ? {
-              verified:  { label: 'KYC Verificado',  cls: 'bg-secondary/10 text-secondary' },
-              pending:   { label: 'KYC Pendente',    cls: 'bg-warning/10 text-warning' },
-              rejected:  { label: 'KYC Rejeitado',   cls: 'bg-destructive/10 text-destructive' },
-            }[selectedCaptain.kycStatus] ?? { label: `KYC: ${selectedCaptain.kycStatus}`, cls: 'bg-muted text-muted-foreground' }
-          : null;
+        const allPhotos = [...navDocs, ...identityDocs];
+        const allLabels = [...navLabels, ...identityLabels];
 
         return (
           <DetailOverlay
             avatarColor="#f59e0b"
             title={selectedCaptain.name}
-            subtitle="Capitão pendente de verificação de documentos"
+            subtitle="Capitão com solicitações de documento aguardando análise"
             badge={
               <div className="flex items-center gap-1.5">
                 <Badge variant="outline" className="text-amber-700 border-amber-400">Pendente</Badge>
-                {kycStatusBadge && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${kycStatusBadge.cls}`}>
-                    {kycStatusBadge.label}
+                {pendingRequests.length > 0 && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    {pendingRequests.length} solicitaç{pendingRequests.length === 1 ? 'ão' : 'ões'}
                   </span>
                 )}
               </div>
             }
             info={[
-              { icon: <Mail className="h-3.5 w-3.5" />, value: selectedCaptain.email },
+              ...(selectedCaptain.email ? [{ icon: <Mail className="h-3.5 w-3.5" />, value: selectedCaptain.email }] : []),
               { icon: <Phone className="h-3.5 w-3.5" />, value: selectedCaptain.phone },
               ...(selectedCaptain.cpf ? [{ icon: <FileText className="h-3.5 w-3.5" />, value: `CPF: ${selectedCaptain.cpf}` }] : []),
               ...((selectedCaptain.city || selectedCaptain.state)
                 ? [{ icon: <MapPin className="h-3.5 w-3.5" />, value: [selectedCaptain.city, selectedCaptain.state].filter(Boolean).join(', ') }]
                 : []),
+              ...(selectedCaptain.createdAt ? [{ icon: <AlertTriangle className="h-3.5 w-3.5" />, value: `Na fila desde ${formatDateTime(selectedCaptain.createdAt)}` }] : []),
             ]}
             docSections={[
               { heading: 'Documentos Náuticos', photos: navDocs, labels: navLabels, offset: 0, allPhotos, allLabels },
-              { heading: 'KYC — Verificação de Identidade', photos: kycDocs, labels: kycLabels, offset: navDocs.length, allPhotos, allLabels },
+              { heading: 'Selfie de Verificação', photos: identityDocs, labels: identityLabels, offset: navDocs.length, allPhotos, allLabels },
             ]}
             onClose={() => setSelectedCaptain(null)}
             onApprove={() => captainVerifyMutation.mutate({ id: selectedCaptain.id, verified: true })}
@@ -703,9 +891,17 @@ export default function VerificationsPage() {
       <Dialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rejeitar {rejectTarget?.type === 'captain' ? 'Capitão' : 'Embarcação'}</DialogTitle>
+            <DialogTitle>
+              Rejeitar {rejectTarget?.type === 'captain'
+                ? 'Capitão'
+                : rejectTarget?.type === 'boat'
+                  ? 'Embarcação'
+                  : 'Solicitação de Alteração'}
+            </DialogTitle>
             <DialogDescription>
-              O motivo será enviado por notificação push para <strong>{rejectTarget?.name}</strong>.
+              {rejectTarget?.type === 'document-change-request'
+                ? <>O motivo será registrado na solicitação de <strong>{rejectTarget?.name}</strong>.</>
+                : <>O motivo será enviado por notificação push para <strong>{rejectTarget?.name}</strong>.</>}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
